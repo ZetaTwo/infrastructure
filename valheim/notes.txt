@@ -1,0 +1,7 @@
+# disable ssh root pw login
+# install linuxgsm dependencies
+sudo adduser vhserver # Check flags
+sudo apt install libsdl2-2.0-0:i386 # Check if still needed to manually install
+wget -O linuxgsm.sh https://linuxgsm.sh && chmod +x linuxgsm.sh && bash linuxgsm.sh vhserver # Might need some Steam server key
+./vhserver install
+# Setup crontab

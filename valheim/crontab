@@ -1,0 +1,4 @@
+*/5 * * * * /home/vhserver/vhserver monitor > /dev/null 2>&1
+*/30 * * * * /home/vhserver/vhserver update > /dev/null 2>&1
+0 0 * * 0 /home/vhserver/vhserver update-lgsm > /dev/null 2>&1
+0 6 * * * /home/vhserver/backup_worlds.sh > /dev/null 2>&1
