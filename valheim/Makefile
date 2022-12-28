@@ -1,6 +1,6 @@
 
 valheim:
-	ansible-playbook -u zetatwo -i hosts.yaml valheim.playbook
+	ansible-playbook -u zetatwo -i hosts.yaml valheim.yaml
 
 lint:
-	ansible-lint valheim.playbook
+	ansible-lint valheim.yaml

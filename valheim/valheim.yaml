@@ -32,16 +32,21 @@
     ansible.builtin.lineinfile:
       dest: /var/lib/dpkg/arch
       line: "amd64"
+      owner: root
       create: true
-  
-  - name: Add i386 to dpkg architecture list 
+      mode: 0644
+
+
+  - name: Add i386 to dpkg architecture list
     become: true
     ansible.builtin.lineinfile:
       dest: /var/lib/dpkg/arch
       line: "i386"
+      owner: root
       create: true
+      mode: 0644
     register: add_i386
-  
+
   - name: Agree to Steam license agreement
     become: true
     ansible.builtin.debconf:
@@ -49,7 +54,7 @@
       question: steam/question
       vtype: select
       value: "I AGREE"
-  
+
   - name: Agree to Steam license agreement 2
     become: true
     ansible.builtin.debconf:
@@ -83,8 +88,7 @@
         - tmux
         - unzip
         - util-linux
-        - wget
-      #update_cache: "{{ add_i386.changed }}"
+        - wgetd
       cache_valid_time: 86400 # One day
 
   - name: Upload linuxgsm.sh
@@ -104,7 +108,7 @@
       chdir: /opt/vhserver
       creates: /opt/vhserver/vhserver
 
-  - name: Install vhserver game files 
+  - name: Install vhserver game files
     become: true
     become_user: vhserver
     ansible.builtin.command:
@@ -112,7 +116,7 @@
       stdin: "Y\nY\nY"
       chdir: /opt/vhserver
       creates: /opt/vhserver/serverfiles
-  
+
   - name: Upload server config - common.cfg
     become: true
     become_user: vhserver
@@ -123,9 +127,9 @@
       src: "lgsm/config-lgsm/vhserver/{{ item }}"
       mode: 0644
     with_items:
-     - common.cfg
-     - secrets-common.cfg
-     - secrets-vhserver.cfg
+      - common.cfg
+      - secrets-common.cfg
+      - secrets-vhserver.cfg
 
   - name: Upload secret server config
     become: true
