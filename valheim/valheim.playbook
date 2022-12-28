@@ -1,0 +1,169 @@
+---
+- name: Setup Valheim servers
+  hosts: valheim
+
+  tasks:
+  - name: Create vhserver user
+    become: true
+    ansible.builtin.user:
+      name: vhserver
+      system: true
+      shell: /bin/false
+      create_home: true
+      home: /opt/vhserver
+
+  - name: Disable password login
+    become: true
+    ansible.builtin.lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: '^(#\s*)?PasswordAuthentication '
+      line: 'PasswordAuthentication no'
+    notify: restart sshd
+
+  - name: Update and upgrade apt packages
+    become: true
+    ansible.builtin.apt:
+      upgrade: true
+      update_cache: true
+      cache_valid_time: 86400 # One day
+
+  - name: Add amd64 to dpkg architecture list
+    become: true
+    ansible.builtin.lineinfile:
+      dest: /var/lib/dpkg/arch
+      line: "amd64"
+      create: true
+  
+  - name: Add i386 to dpkg architecture list 
+    become: true
+    ansible.builtin.lineinfile:
+      dest: /var/lib/dpkg/arch
+      line: "i386"
+      create: true
+    register: add_i386
+  
+  - name: Agree to Steam license agreement
+    become: true
+    ansible.builtin.debconf:
+      name: steam
+      question: steam/question
+      vtype: select
+      value: "I AGREE"
+  
+  - name: Agree to Steam license agreement 2
+    become: true
+    ansible.builtin.debconf:
+      name: steam
+      question: steam/license
+      vtype: note
+      value: ""
+
+  # Install dependencies https://linuxgsm.com/servers/vhserver/
+  - name: Install Valheim dependencies
+    become: true
+    ansible.builtin.apt:
+      name:
+        - bc
+        - binutils
+        - bsdmainutils
+        - bzip2
+        - ca-certificates
+        - curl
+        - file
+        - gzip
+        - jq
+        - lib32gcc-s1
+        - lib32stdc++6
+        - libc6-dev
+        - libsdl2-2.0-0:i386
+        - netcat
+        - python3
+        - steamcmd
+        - tar
+        - tmux
+        - unzip
+        - util-linux
+        - wget
+      #update_cache: "{{ add_i386.changed }}"
+      cache_valid_time: 86400 # One day
+
+  - name: Upload linuxgsm.sh
+    become: true
+    ansible.builtin.copy:
+      dest: /opt/vhserver/
+      owner: vhserver
+      group: vhserver
+      src: linuxgsm.sh
+      mode: 0755
+
+  - name: Install vhserver
+    become: true
+    become_user: vhserver
+    ansible.builtin.command:
+      cmd: ./linuxgsm.sh vhserver
+      chdir: /opt/vhserver
+      creates: /opt/vhserver/vhserver
+
+  - name: Install vhserver game files 
+    become: true
+    become_user: vhserver
+    ansible.builtin.command:
+      cmd: ./vhserver install
+      stdin: "Y\nY\nY"
+      chdir: /opt/vhserver
+      creates: /opt/vhserver/serverfiles
+  
+  - name: Upload server config
+    become: true
+    become_user: vhserver
+    ansible.builtin.copy:
+      dest: /opt/vhserver/lgsm/config-lgsm/vhserver
+      owner: vhserver
+      group: vhserver
+      src: lgsm/config-lgsm/vhserver/
+      mode: 0644
+
+  - name: Upload backup script
+    become: true
+    become_user: vhserver
+    ansible.builtin.copy:
+      dest: /opt/vhserver/
+      owner: vhserver
+      group: vhserver
+      src: backup_worlds.sh
+      mode: 0755
+
+  - name: Set up cronjob for vhserver monitor
+    become: true
+    ansible.builtin.cron:
+      name: Monitor vhserver
+      user: vhserver
+      minute: "*/5"
+      job: "/opt/vhserver/vhserver monitor > /dev/null 2>&1"
+
+  - name: Set up cronjob for vhserver update
+    become: true
+    ansible.builtin.cron:
+      name: Update vhserver
+      user: vhserver
+      minute: "*/30"
+      job: "/opt/vhserver/vhserver update > /dev/null 2>&1"
+
+  - name: Set up cronjob for vhserver update-lgsm
+    become: true
+    ansible.builtin.cron:
+      name: Update LGSM
+      minute: 0
+      hour: 0
+      user: vhserver
+      weekday: 0
+      job: "/opt/vhserver/vhserver update-lgsm > /dev/null 2>&1"
+
+  - name: Set up cronjob for vhserver backup
+    become: true
+    ansible.builtin.cron:
+      name: Backup game server
+      minute: 0
+      user: vhserver
+      hour: 6
+      job: "/opt/vhserver/backup_worlds.sh > /dev/null 2>&1"
