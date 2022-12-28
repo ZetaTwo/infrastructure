@@ -113,14 +113,28 @@
       chdir: /opt/vhserver
       creates: /opt/vhserver/serverfiles
   
-  - name: Upload server config
+  - name: Upload server config - common.cfg
     become: true
     become_user: vhserver
     ansible.builtin.copy:
-      dest: /opt/vhserver/lgsm/config-lgsm/vhserver
+      dest: "/opt/vhserver/lgsm/config-lgsm/vhserver/{{ item }}"
       owner: vhserver
       group: vhserver
-      src: lgsm/config-lgsm/vhserver/
+      src: "lgsm/config-lgsm/vhserver/{{ item }}"
+      mode: 0644
+    with_items:
+     - common.cfg
+     - secrets-common.cfg
+     - secrets-vhserver.cfg
+
+  - name: Upload secret server config
+    become: true
+    become_user: vhserver
+    ansible.builtin.template:
+      dest: /opt/vhserver/lgsm/config-lgsm/vhserver/vhserver.cfg
+      owner: vhserver
+      group: vhserver
+      src: lgsm/config-lgsm/vhserver/vhserver.cfg.j2
       mode: 0644
 
   - name: Upload backup script
