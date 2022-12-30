@@ -88,7 +88,7 @@
         - tmux
         - unzip
         - util-linux
-        - wgetd
+        - wget
       cache_valid_time: 86400 # One day
 
   - name: Upload linuxgsm.sh
@@ -149,6 +149,16 @@
       owner: vhserver
       group: vhserver
       src: backup_worlds.sh
+      mode: 0755
+
+  - name: Create backups directory
+    become: true
+    become_user: vhserver
+    ansible.builtin.file:
+      path: /opt/vhserver/worlds_backups
+      state: directory
+      owner: vhserver
+      group: vhserver
       mode: 0755
 
   - name: Set up cronjob for vhserver monitor
