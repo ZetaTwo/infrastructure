@@ -18,7 +18,7 @@
       dest: /etc/ssh/sshd_config
       regexp: '^(#\s*)?PasswordAuthentication '
       line: 'PasswordAuthentication no'
-    notify: restart sshd
+    notify: "restart sshd"
 
   - name: Update and upgrade apt packages
     become: true
@@ -36,7 +36,7 @@
       create: true
       mode: 0644
 
-
+  # TODO: make sure apt update happens correctly after this
   - name: Add i386 to dpkg architecture list
     become: true
     ansible.builtin.lineinfile:
