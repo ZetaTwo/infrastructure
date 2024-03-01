@@ -1,0 +1,28 @@
+---
+- name: Basic setup of Hetzner server
+  hosts: all
+
+  tasks:
+    - name: Create zetatwo user
+      become: true
+      ansible.builtin.user:
+        name: zetatwo
+        shell: /bin/bash
+        create_home: true
+
+    - name: Set up zetatwo authorized key
+      ansible.posix.authorized_key:
+        user: zetatwo
+        state: present
+        key: '{{ item }}'
+      with_file:
+        - zetatwo.pub
+
+    - name: Allow sudo from zetatwo
+      become: true
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/zetatwo
+        owner: root
+        group: root
+        src: zetatwo.sudoers
+        mode: '0644'
