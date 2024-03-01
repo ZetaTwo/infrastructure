@@ -3,195 +3,210 @@
   hosts: valheim
 
   tasks:
-  - name: Create vhserver user
-    become: true
-    ansible.builtin.user:
-      name: vhserver
-      system: true
-      shell: /bin/false
-      create_home: true
-      home: /opt/vhserver
+    - name: Create vhserver user
+      become: true
+      ansible.builtin.user:
+        name: vhserver
+        system: true
+        shell: /bin/false
+        create_home: true
+        home: /opt/vhserver
 
-  - name: Disable password login
-    become: true
-    ansible.builtin.lineinfile:
-      dest: /etc/ssh/sshd_config
-      regexp: '^(#\s*)?PasswordAuthentication '
-      line: 'PasswordAuthentication no'
-    notify: "restart sshd"
+    - name: Disable password login
+      become: true
+      ansible.builtin.lineinfile:
+        dest: /etc/ssh/sshd_config
+        regexp: '^(#\s*)?PasswordAuthentication '
+        line: 'PasswordAuthentication no'
+      notify: "Restart sshd"
 
-  - name: Update and upgrade apt packages
-    become: true
-    ansible.builtin.apt:
-      upgrade: true
-      update_cache: true
-      cache_valid_time: 86400 # One day
+    - name: Add amd64 to dpkg architecture list
+      become: true
+      ansible.builtin.lineinfile:
+        dest: /var/lib/dpkg/arch
+        line: "amd64"
+        owner: root
+        create: true
+        mode: '0644'
+      register: apt_add_amd64
 
-  - name: Add amd64 to dpkg architecture list
-    become: true
-    ansible.builtin.lineinfile:
-      dest: /var/lib/dpkg/arch
-      line: "amd64"
-      owner: root
-      create: true
-      mode: 0644
+    - name: Add i386 to dpkg architecture list
+      become: true
+      ansible.builtin.lineinfile:
+        dest: /var/lib/dpkg/arch
+        line: "i386"
+        owner: root
+        create: true
+        mode: '0644'
+      register: apt_add_i386
 
-  # TODO: make sure apt update happens correctly after this
-  - name: Add i386 to dpkg architecture list
-    become: true
-    ansible.builtin.lineinfile:
-      dest: /var/lib/dpkg/arch
-      line: "i386"
-      owner: root
-      create: true
-      mode: 0644
-    register: add_i386
+    - name: Update apt cache
+      become: true
+      when: apt_add_amd64.changed or apt_add_i386.changed
+      ansible.builtin.apt:
+        update_cache: true
 
-  - name: Agree to Steam license agreement
-    become: true
-    ansible.builtin.debconf:
-      name: steam
-      question: steam/question
-      vtype: select
-      value: "I AGREE"
+    - name: Update and upgrade apt packages
+      become: true
+      ansible.builtin.apt:
+        upgrade: true
+        update_cache: true
+        cache_valid_time: 86400 # One day
 
-  - name: Agree to Steam license agreement 2
-    become: true
-    ansible.builtin.debconf:
-      name: steam
-      question: steam/license
-      vtype: note
-      value: ""
+    - name: Agree to Steam license agreement
+      become: true
+      ansible.builtin.debconf:
+        name: steam
+        question: steam/question
+        vtype: select
+        value: "I AGREE"
 
-  # Install dependencies https://linuxgsm.com/servers/vhserver/
-  - name: Install Valheim dependencies
-    become: true
-    ansible.builtin.apt:
-      name:
-        - bc
-        - binutils
-        - bsdmainutils
-        - bzip2
-        - ca-certificates
-        - curl
-        - file
-        - gzip
-        - jq
-        - lib32gcc-s1
-        - lib32stdc++6
-        - libc6-dev
-        - libsdl2-2.0-0:i386
-        - netcat
-        - python3
-        - steamcmd
-        - tar
-        - tmux
-        - unzip
-        - util-linux
-        - wget
-      cache_valid_time: 86400 # One day
+    - name: Agree to Steam license agreement 2
+      become: true
+      ansible.builtin.debconf:
+        name: steam
+        question: steam/license
+        vtype: note
+        value: ""
 
-  - name: Upload linuxgsm.sh
-    become: true
-    ansible.builtin.copy:
-      dest: /opt/vhserver/
-      owner: vhserver
-      group: vhserver
-      src: linuxgsm.sh
-      mode: 0755
+    # Install dependencies https://linuxgsm.com/servers/vhserver/
+    - name: Install Valheim dependencies
+      become: true
+      ansible.builtin.apt:
+        name:
+          - bc
+          - binutils
+          - bsdmainutils
+          - bzip2
+          - ca-certificates
+          - curl
+          - file
+          - gzip
+          - jq
+          - lib32gcc-s1
+          - lib32stdc++6
+          - libc6-dev
+          - libsdl2-2.0-0:i386
+          - netcat
+          - python3
+          - steamcmd
+          - tar
+          - tmux
+          - unzip
+          - util-linux
+          - wget
+        cache_valid_time: 86400 # One day
 
-  - name: Install vhserver
-    become: true
-    become_user: vhserver
-    ansible.builtin.command:
-      cmd: ./linuxgsm.sh vhserver
-      chdir: /opt/vhserver
-      creates: /opt/vhserver/vhserver
+    - name: Upload linuxgsm.sh
+      become: true
+      ansible.builtin.copy:
+        dest: /opt/vhserver/
+        owner: vhserver
+        group: vhserver
+        src: linuxgsm.sh
+        mode: '0755'
+      register: upload_linuxgsm
 
-  - name: Install vhserver game files
-    become: true
-    become_user: vhserver
-    ansible.builtin.command:
-      cmd: ./vhserver install
-      stdin: "Y\nY\nY"
-      chdir: /opt/vhserver
-      creates: /opt/vhserver/serverfiles
+    - name: Install vhserver
+      become: true
+      when: upload_linuxgsm.changed
+      become_user: vhserver
+      ansible.builtin.command:
+        cmd: ./linuxgsm.sh vhserver
+        chdir: /opt/vhserver
+        creates: /opt/vhserver/vhserver
 
-  - name: Upload server config - common.cfg
-    become: true
-    become_user: vhserver
-    ansible.builtin.copy:
-      dest: "/opt/vhserver/lgsm/config-lgsm/vhserver/{{ item }}"
-      owner: vhserver
-      group: vhserver
-      src: "lgsm/config-lgsm/vhserver/{{ item }}"
-      mode: 0644
-    with_items:
-      - common.cfg
-      - secrets-common.cfg
-      - secrets-vhserver.cfg
+    - name: Install vhserver game files
+      become: true
+      become_user: vhserver
+      ansible.builtin.command:
+        cmd: ./vhserver install
+        stdin: "Y\nY\nY"
+        chdir: /opt/vhserver
+        creates: /opt/vhserver/serverfiles
 
-  - name: Upload secret server config
-    become: true
-    become_user: vhserver
-    ansible.builtin.template:
-      dest: /opt/vhserver/lgsm/config-lgsm/vhserver/vhserver.cfg
-      owner: vhserver
-      group: vhserver
-      src: lgsm/config-lgsm/vhserver/vhserver.cfg.j2
-      mode: 0644
+    - name: Upload server config - common.cfg
+      become: true
+      become_user: vhserver
+      ansible.builtin.copy:
+        dest: "/opt/vhserver/lgsm/config-lgsm/vhserver/{{ item }}"
+        owner: vhserver
+        group: vhserver
+        src: "lgsm/config-lgsm/vhserver/{{ item }}"
+        mode: '0644'
+      with_items:
+        - common.cfg
+        - secrets-common.cfg
+        - secrets-vhserver.cfg
 
-  - name: Upload backup script
-    become: true
-    become_user: vhserver
-    ansible.builtin.copy:
-      dest: /opt/vhserver/
-      owner: vhserver
-      group: vhserver
-      src: backup_worlds.sh
-      mode: 0755
+    - name: Upload secret server config
+      become: true
+      become_user: vhserver
+      ansible.builtin.template:
+        dest: /opt/vhserver/lgsm/config-lgsm/vhserver/vhserver.cfg
+        owner: vhserver
+        group: vhserver
+        src: lgsm/config-lgsm/vhserver/vhserver.cfg.j2
+        mode: '0644'
 
-  - name: Create backups directory
-    become: true
-    become_user: vhserver
-    ansible.builtin.file:
-      path: /opt/vhserver/worlds_backups
-      state: directory
-      owner: vhserver
-      group: vhserver
-      mode: 0755
+    - name: Upload backup script
+      become: true
+      become_user: vhserver
+      ansible.builtin.copy:
+        dest: /opt/vhserver/
+        owner: vhserver
+        group: vhserver
+        src: backup_worlds.sh
+        mode: '0755'
 
-  - name: Set up cronjob for vhserver monitor
-    become: true
-    ansible.builtin.cron:
-      name: Monitor vhserver
-      user: vhserver
-      minute: "*/5"
-      job: "/opt/vhserver/vhserver monitor > /dev/null 2>&1"
+    - name: Create backups directory
+      become: true
+      become_user: vhserver
+      ansible.builtin.file:
+        path: /opt/vhserver/worlds_backups
+        state: directory
+        owner: vhserver
+        group: vhserver
+        mode: '0755'
 
-  - name: Set up cronjob for vhserver update
-    become: true
-    ansible.builtin.cron:
-      name: Update vhserver
-      user: vhserver
-      minute: "*/30"
-      job: "/opt/vhserver/vhserver update > /dev/null 2>&1"
+    - name: Set up cronjob for vhserver monitor
+      become: true
+      ansible.builtin.cron:
+        name: Monitor vhserver
+        user: vhserver
+        minute: "*/5"
+        job: "/opt/vhserver/vhserver monitor > /dev/null 2>&1"
 
-  - name: Set up cronjob for vhserver update-lgsm
-    become: true
-    ansible.builtin.cron:
-      name: Update LGSM
-      minute: 0
-      hour: 0
-      user: vhserver
-      weekday: 0
-      job: "/opt/vhserver/vhserver update-lgsm > /dev/null 2>&1"
+    - name: Set up cronjob for vhserver update
+      become: true
+      ansible.builtin.cron:
+        name: Update vhserver
+        user: vhserver
+        minute: "*/30"
+        job: "/opt/vhserver/vhserver update > /dev/null 2>&1"
 
-  - name: Set up cronjob for vhserver backup
-    become: true
-    ansible.builtin.cron:
-      name: Backup game server
-      minute: 0
-      user: vhserver
-      hour: 6
-      job: "/opt/vhserver/backup_worlds.sh > /dev/null 2>&1"
+    - name: Set up cronjob for vhserver update-lgsm
+      become: true
+      ansible.builtin.cron:
+        name: Update LGSM
+        minute: 0
+        hour: 0
+        user: vhserver
+        weekday: 0
+        job: "/opt/vhserver/vhserver update-lgsm > /dev/null 2>&1"
+
+    - name: Set up cronjob for vhserver backup
+      become: true
+      ansible.builtin.cron:
+        name: Backup game server
+        minute: 0
+        user: vhserver
+        hour: 6
+        job: "/opt/vhserver/backup_worlds.sh > /dev/null 2>&1"
+
+  handlers:
+    - name: "Restart sshd"
+      become: true
+      ansible.builtin.service:
+        name: ssh
+        state: restarted

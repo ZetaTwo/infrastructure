@@ -6,6 +6,4 @@ To run the playbook, create a `hosts.yaml` file using the template `hosts.yaml.t
 
 ## TODO
 
-* Fix SSH restart trigger
-* Fix apt update after i386 add
 * Allow setting up multiple servers

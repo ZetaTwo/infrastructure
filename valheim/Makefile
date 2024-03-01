@@ -4,3 +4,5 @@ valheim:
 
 lint:
 	ansible-lint valheim.yaml
+
+.PHONY: valheim lint
