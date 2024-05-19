@@ -87,7 +87,7 @@
           - lib32stdc++6
           - libc6-dev
           - libsdl2-2.0-0:i386
-          - netcat
+          - netcat-openbsd
           - python3
           - steamcmd
           - tar
