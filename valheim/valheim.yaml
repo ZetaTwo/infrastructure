@@ -86,6 +86,7 @@
           - lib32gcc-s1
           - lib32stdc++6
           - libc6-dev
+          - libpulse-dev
           - libsdl2-2.0-0:i386
           - netcat-openbsd
           - python3
