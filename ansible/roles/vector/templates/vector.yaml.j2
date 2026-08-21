@@ -1,0 +1,40 @@
+sources:
+  journald:
+    type: journald
+    current_boot_only: true
+
+transforms:
+  parse_json:
+    type: remap
+    inputs: ["journald"]
+    source: |
+      parsed, err = parse_json(.message)
+      if err == null {
+        . = merge(., parsed)
+      }
+
+  errors_only:
+    type: filter
+    inputs: ["parse_json"]
+    condition: '.level == "ERROR" || .level == "error"'
+
+  rate_limited:
+    type: throttle
+    inputs: ["errors_only"]
+    threshold: 1
+    window_secs: 60
+    key_field: "static"
+
+sinks:
+  ntfy:
+    type: http
+    inputs: ["rate_limited"]
+    uri: "${NTFY_URL}"
+    method: post
+    encoding:
+      codec: text
+    request:
+      headers:
+        Title: "Server alert"
+        Priority: "high"
+        Tags: "rotating_light"

@@ -1,0 +1,7 @@
+---
+apps_domain: zeta-two.com
+admin_domain: zetatwo.dev
+
+# vault_ntfy_topic_url is added by Phase D setup — see README.md — via:
+#   ansible-vault encrypt_string 'https://ntfy.sh/<private-topic>' --name vault_ntfy_topic_url
+# and appending the resulting block to this file.

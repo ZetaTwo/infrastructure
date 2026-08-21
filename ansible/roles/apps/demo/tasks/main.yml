@@ -1,0 +1,21 @@
+---
+- name: Deploy demo quadlet
+  ansible.builtin.template:
+    src: demo.container.j2
+    dest: /etc/containers/systemd/demo.container
+    mode: '0644'
+  register: demo_quadlet
+
+- name: Reload systemd and start demo
+  ansible.builtin.systemd:
+    name: demo.service
+    daemon_reload: true
+    state: "{{ 'restarted' if demo_quadlet.changed else 'started' }}"
+    enabled: true
+
+- name: Deploy caddy site for demo
+  ansible.builtin.template:
+    src: demo.caddy.j2
+    dest: /etc/caddy/sites/demo.caddy
+    mode: '0644'
+  notify: reload caddy

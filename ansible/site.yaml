@@ -1,0 +1,11 @@
+---
+- name: Configure app server
+  hosts: all
+  become: false
+
+  roles:
+    - podman
+    - caddy
+    - vector
+    - cockpit
+    - apps/demo

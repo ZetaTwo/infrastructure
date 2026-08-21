@@ -1,0 +1,12 @@
+bucket     = "zetatwo-infra-tfstate"
+key        = "infrastructure/terraform.tfstate"
+region     = "eu-central"
+endpoints  = { s3 = "https://fsn1.your-objectstorage.com" }
+access_key = "REPLACE_ME"
+secret_key = "REPLACE_ME"
+
+skip_credentials_validation = true
+skip_region_validation      = true
+skip_requesting_account_id  = true
+skip_s3_checksum            = true
+use_lockfile                = true
