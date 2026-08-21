@@ -28,4 +28,4 @@
     src: Caddyfile.j2
     dest: /etc/caddy/Caddyfile
     mode: '0644'
-  notify: reload caddy
+  notify: Reload caddy

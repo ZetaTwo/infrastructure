@@ -5,6 +5,12 @@
     state: present
     update_cache: true
 
+- name: Create cockpit.socket drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/cockpit.socket.d
+    state: directory
+    mode: '0755'
+
 - name: Restrict cockpit socket to localhost
   ansible.builtin.copy:
     dest: /etc/systemd/system/cockpit.socket.d/listen.conf
@@ -13,7 +19,7 @@
       ListenStream=
       ListenStream=127.0.0.1:9090
     mode: '0644'
-  notify: restart cockpit socket
+  notify: Restart cockpit socket
 
 - name: Allow root login to cockpit
   # Deliberate, scoped exception: there is no non-root admin user in this design,
@@ -37,4 +43,4 @@
     src: cockpit.caddy.j2
     dest: /etc/caddy/sites/cockpit.caddy
     mode: '0644'
-  notify: reload caddy
+  notify: Reload caddy

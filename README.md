@@ -72,14 +72,14 @@ If the server ever needs to be rebuilt from nothing: `make tf-apply` then
 
 ## Adding a new app
 
-Follow the pattern in `ansible/roles/apps/demo/`:
+Follow the pattern in `ansible/roles/apps-demo/`:
 
 1. Add a Cloudflare A record for the new hostname in `terraform/dns.tf`
    (on `apps_zone_id` for a public app), then `make tf-apply`.
-2. Copy `ansible/roles/apps/demo/` to `ansible/roles/apps/<name>/`, updating
+2. Copy `ansible/roles/apps-demo/` to `ansible/roles/apps-<name>/`, updating
    the image reference in `templates/<name>.container.j2` and the hostname in
    `templates/<name>.caddy.j2`.
-3. Add `apps/<name>` to the role list in `ansible/site.yaml`.
+3. Add `apps-<name>` to the role list in `ansible/site.yaml`.
 4. `make ansible-apply`.
 
 Each app's quadlet runs with `DynamicUser=yes` — systemd allocates it its own
