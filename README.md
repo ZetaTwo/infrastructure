@@ -129,6 +129,7 @@ Two Cloudflare zones, both Terraform-managed, both with explicit
 - `zeta-two.com` — hobby apps, e.g. `demo.zeta-two.com`.
 - `zetatwo.dev` — admin/infra surfaces, e.g. `admin.zetatwo.dev` (Cockpit).
 
-The domain names are duplicated in two places — `terraform/variables.tf`
-(`apps_domain`/`admin_domain` defaults) and `ansible/group_vars/all.yml`
-(`apps_domain`/`admin_domain`) — update both together if either ever changes.
+The zone IDs (`terraform/secrets.auto.tfvars`) are the single source of truth:
+Terraform looks up each zone's domain name via a `cloudflare_zone` data source
+and writes it into the generated `ansible/inventory/hosts.yaml`, so Ansible
+never hardcodes the domain names itself.

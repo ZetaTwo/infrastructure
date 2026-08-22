@@ -1,6 +1,6 @@
 ---
-apps_domain: zeta-two.com
-admin_domain: zetatwo.dev
+# apps_domain and admin_domain are supplied by Terraform via
+# ansible/inventory/hosts.yaml (generated, gitignored) — see terraform/data.tf.
 
 # vault_ntfy_topic_url is added by Phase D setup — see README.md — via:
 #   ansible-vault encrypt_string 'https://ntfy.sh/<private-topic>' --name vault_ntfy_topic_url

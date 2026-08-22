@@ -2,3 +2,6 @@ all:
   hosts:
     ${server_ip}:
       ansible_user: root
+  vars:
+    apps_domain: ${apps_domain}
+    admin_domain: ${admin_domain}
