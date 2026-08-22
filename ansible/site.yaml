@@ -4,6 +4,7 @@
   become: false
 
   roles:
+    - users
     - podman
     - caddy
     - vector

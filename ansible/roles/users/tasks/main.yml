@@ -1,0 +1,21 @@
+---
+- name: Fetch zetatwo SSH keys from GitHub
+  ansible.builtin.uri:
+    url: https://github.com/zetatwo.keys
+    return_content: true
+  register: users_zetatwo_github_keys
+
+- name: Create zetatwo user
+  ansible.builtin.user:
+    name: zetatwo
+    password: "{{ zetatwo_password_hash }}"
+    groups: sudo
+    append: true
+    shell: /bin/bash
+    create_home: true
+
+- name: Deploy zetatwo SSH authorized key
+  ansible.posix.authorized_key:
+    user: zetatwo
+    key: "{{ users_zetatwo_github_keys.content }}"
+    state: present

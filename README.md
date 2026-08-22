@@ -108,6 +108,25 @@ referenced, so swapping it for another push service later only means editing
 `ansible/roles/vector/templates/vector.yaml.j2`'s sink and the one vaulted
 variable.
 
+## Admin login (zetatwo)
+
+The `users` role creates a single non-root admin account, `zetatwo`, in the
+`sudo` group. Its SSH key is pulled at apply time from
+`https://github.com/zetatwo.keys`. Its login password is a pre-hashed
+(crypt/shadow-style) vaulted variable:
+
+```sh
+mkpasswd --method=yescrypt
+ansible-vault encrypt_string '<the hash>' --name zetatwo_password_hash
+```
+
+Append the resulting block to `ansible/group_vars/all.yml`, same as
+`ntfy_topic_url` below.
+
+Ansible itself still connects and manages the box as `root` over SSH
+(`ansible_user: root` in the generated inventory) — `zetatwo` is for
+interactive login (SSH, Cockpit), not for Ansible's own access.
+
 ## Cockpit (mobile administration)
 
 Reachable at `https://admin.zetatwo.dev`, proxied by Caddy. `cockpit.socket`
@@ -115,11 +134,8 @@ itself only listens on `127.0.0.1:9090` — never exposed directly — and the
 Hetzner Cloud Firewall only opens 22/80/443, so port 9090 is unreachable from
 the internet regardless of Caddy's config.
 
-**Note:** since this design has no non-root admin OS user (Ansible connects
-and manages the box as `root`), Cockpit's default root-login block is
-explicitly disabled so you can log in as `root`. This makes the Cockpit UI a
-root-equivalent entry point, gated only by the Cockpit login password and the
-network restrictions above. Understand that trade-off before relying on it.
+Login is as `zetatwo` (see above); root login to Cockpit is blocked, the
+package default.
 
 ## Domains
 
