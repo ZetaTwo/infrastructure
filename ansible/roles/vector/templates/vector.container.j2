@@ -2,7 +2,7 @@
 Description=Vector log shipper (journald -> ntfy)
 
 [Container]
-Image=docker.io/timberio/vector:latest-alpine
+Image=docker.io/timberio/vector:latest-debian
 Volume=/etc/vector/vector.yaml:/etc/vector/vector.yaml:ro
 Volume=/var/log/journal:/var/log/journal:ro
 Volume=/etc/machine-id:/etc/machine-id:ro
@@ -11,8 +11,6 @@ Exec=--config /etc/vector/vector.yaml
 AutoUpdate=registry
 
 [Service]
-DynamicUser=yes
-SupplementaryGroups=systemd-journal
 Restart=always
 
 [Install]
