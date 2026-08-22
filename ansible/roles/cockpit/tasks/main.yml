@@ -21,6 +21,13 @@
     mode: '0644'
   notify: Restart cockpit socket
 
+- name: Deploy cockpit.conf
+  ansible.builtin.template:
+    src: cockpit.conf.j2
+    dest: /etc/cockpit/cockpit.conf
+    mode: '0644'
+  notify: Restart cockpit socket
+
 - name: Allow root login to cockpit
   # Deliberate, scoped exception: there is no non-root admin user in this design,
   # and cockpit.socket is only reachable via Caddy on 127.0.0.1:9090 (see above),
