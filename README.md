@@ -96,7 +96,7 @@ Caddy/Podman config and out of plaintext Ansible vars:
 
 ```sh
 ansible-vault encrypt_string 'https://ntfy.sh/<your-private-topic>' \
-  --name vault_ntfy_topic_url
+  --name ntfy_topic_url
 ```
 
 Append the resulting block to `ansible/group_vars/all.yml`. Runs against the

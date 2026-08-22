@@ -10,7 +10,7 @@ tf-apply:
 	cd terraform && terraform apply
 
 ansible-apply:
-	cd ansible && ansible-playbook site.yaml
+	cd ansible && ansible-playbook site.yaml --vault-password-file .vault_pass
 
 lint:
 	cd ansible && ansible-lint site.yaml
