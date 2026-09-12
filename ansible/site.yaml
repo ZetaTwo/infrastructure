@@ -5,8 +5,5 @@
 
   roles:
     - users
-    - podman
-    - caddy
-    - vector
-    - cockpit
+    - k3s
     - apps-demo

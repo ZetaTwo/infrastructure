@@ -1,9 +1,10 @@
 # infrastructure
 
 Deploy-and-forget hosting for hobby projects on a single Hetzner Cloud VPS.
-Terraform owns the server, firewall, and DNS. Ansible configures the OS and
-drops one Podman quadlet + Caddy site per app. See [idea1.md](idea1.md) for
-the original design rationale.
+Terraform owns the server, firewall, and DNS. Ansible installs a single-node
+k3s cluster and drops one Kubernetes manifest (Deployment + Service +
+Ingress) per app. Traefik (bundled with k3s) handles ingress, and
+cert-manager issues Let's Encrypt certificates per app via HTTP-01.
 
 ## One-time setup
 
@@ -64,11 +65,34 @@ make tf-init      # first time only, or after changing backend.hcl
 make tf-plan       # review infrastructure changes
 make tf-apply      # create/update the server, firewall, DNS records
                     # (also regenerates ansible/inventory/hosts.yaml)
-make ansible-apply  # configure the OS: podman, caddy, vector, cockpit, apps
+make ansible-apply  # install/configure k3s, cert-manager, and apps
 ```
 
 If the server ever needs to be rebuilt from nothing: `make tf-apply` then
 `make ansible-apply` fully restores it.
+
+`ansible/roles/k3s` installs k3s (pinned via `k3s_version` in
+`ansible/group_vars/all.yml`) and cert-manager (pinned via
+`cert_manager_version`), and deploys a `ClusterIssuer` for Let's Encrypt.
+Bumping either version in `group_vars/all.yml` and re-running
+`make ansible-apply` performs a controlled upgrade; re-running with no
+version change is a no-op.
+
+## Accessing the cluster
+
+There is no public route to the Kubernetes API (port 6443 is not opened in
+`terraform/firewall.tf`). Run `kubectl` on the box itself over SSH:
+
+```sh
+ssh root@<server> k3s kubectl get nodes
+```
+
+or tunnel the API port and use a local `kubectl` with the node's kubeconfig
+(`/etc/rancher/k3s/k3s.yaml`, fetched over SSH):
+
+```sh
+ssh -L 6443:localhost:6443 root@<server>
+```
 
 ## Adding a new app
 
@@ -77,36 +101,41 @@ Follow the pattern in `ansible/roles/apps-demo/`:
 1. Add a Cloudflare A record for the new hostname in `terraform/dns.tf`
    (on `apps_zone_id` for a public app), then `make tf-apply`.
 2. Copy `ansible/roles/apps-demo/` to `ansible/roles/apps-<name>/`, updating
-   the image reference in `templates/<name>.container.j2` and the hostname in
-   `templates/<name>.caddy.j2`.
+   the image reference and hostname in `templates/<name>.yaml.j2`
+   (Deployment + Service + Ingress).
 3. Add `apps-<name>` to the role list in `ansible/site.yaml`.
 4. `make ansible-apply`.
 
-Each app's quadlet runs with `DynamicUser=yes` — systemd allocates it its own
-ephemeral, unprivileged host UID rather than sharing a fixed account.
-`podman auto-update` (nightly timer) pulls new `:latest`/tagged images from
-GHCR automatically. A private GHCR image will need a pull secret configured
-on the server — not set up yet, add if/when a real app needs it.
+Each app's Ingress is annotated `cert-manager.io/cluster-issuer:
+letsencrypt-prod`, so cert-manager issues and renews its certificate
+automatically via HTTP-01 through Traefik.
 
-## Alerting (Vector → ntfy.sh)
+There's no automated image-update mechanism yet (the old Podman setup had
+`podman-auto-update`; nothing replaces it here). See the TODOs below. A
+private GHCR image will also need an `imagePullSecret` configured — not set
+up yet, add if/when a real app needs it.
 
-Vector watches journald for JSON `ERROR` logs and posts them to an ntfy.sh
-topic, rate-limited to 1/minute. The topic URL is a secret, kept out of the
-Caddy/Podman config and out of plaintext Ansible vars:
+## TODOs / deferred
 
-```sh
-ansible-vault encrypt_string 'https://ntfy.sh/<your-private-topic>' \
-  --name ntfy_topic_url
-```
+A few things were deliberately dropped or deferred in the move from
+Podman+Caddy to k3s, rather than carried over 1:1:
 
-Append the resulting block to `ansible/group_vars/all.yml`. Runs against the
-inventory need `--ask-vault-pass`, or a gitignored `ansible/.vault_pass` file
-passed via `--vault-password-file ansible/.vault_pass`.
-
-ntfy.sh is the first-step backend; the topic URL is the only place it's
-referenced, so swapping it for another push service later only means editing
-`ansible/roles/vector/templates/vector.yaml.j2`'s sink and the one vaulted
-variable.
+- **Admin/management tooling.** Cockpit was removed: it only binds to
+  `127.0.0.1:9090`, and Traefik (running in the pod network) can't reach a
+  host-loopback-only service without extra plumbing. Revisit this —
+  options include a proper Kubernetes dashboard, or keeping something
+  SSH-tunneled rather than exposed as a public admin surface.
+- **Logging/alerting.** The Vector → ntfy.sh pipeline (journald →
+  JSON-`ERROR` filter → rate-limited push) was removed rather than adapted:
+  k3s pods log to `/var/log/pods/...` via containerd, not journald, so the
+  old pipeline wouldn't see app-level errors without rework. Revisit with a
+  k8s-native log shipper (e.g. a DaemonSet) or a hosted alternative.
+- **App deployment / image updates.** Apps are applied with a plain
+  `k3s kubectl apply` run from Ansible, with no automated rollout on new
+  image tags. Worth evaluating once there's more than one real app: either
+  a lightweight updater (a `CronJob` doing `kubectl rollout restart`, or a
+  tool like Keel), or moving to a GitOps model (Flux/Argo CD reconciling
+  manifests from this repo) instead of Ansible-driven `kubectl apply`.
 
 ## Admin login (zetatwo)
 
@@ -120,30 +149,22 @@ mkpasswd --method=yescrypt
 ansible-vault encrypt_string '<the hash>' --name zetatwo_password_hash
 ```
 
-Append the resulting block to `ansible/group_vars/all.yml`, same as
-`ntfy_topic_url` below.
+Append the resulting block to `ansible/group_vars/all.yml`.
 
 Ansible itself still connects and manages the box as `root` over SSH
 (`ansible_user: root` in the generated inventory) — `zetatwo` is for
-interactive login (SSH, Cockpit), not for Ansible's own access.
-
-## Cockpit (mobile administration)
-
-Reachable at `https://admin.zetatwo.dev`, proxied by Caddy. `cockpit.socket`
-itself only listens on `127.0.0.1:9090` — never exposed directly — and the
-Hetzner Cloud Firewall only opens 22/80/443, so port 9090 is unreachable from
-the internet regardless of Caddy's config.
-
-Login is as `zetatwo` (see above); root login to Cockpit is blocked, the
-package default.
+interactive SSH login, not for Ansible's own access.
 
 ## Domains
 
-Two Cloudflare zones, both Terraform-managed, both with explicit
+One Cloudflare zone currently in use, Terraform-managed, with explicit
 (never wildcard) A records:
 
 - `zeta-two.com` — hobby apps, e.g. `demo.zeta-two.com`.
-- `zetatwo.dev` — admin/infra surfaces, e.g. `admin.zetatwo.dev` (Cockpit).
+
+A second zone, `zetatwo.dev`, is set up (`admin_zone_id` /
+`data.cloudflare_zone.admin`) but has no record on it yet — reserved for
+future admin/management surfaces, see the TODOs above.
 
 The zone IDs (`terraform/secrets.auto.tfvars`) are the single source of truth:
 Terraform looks up each zone's domain name via a `cloudflare_zone` data source

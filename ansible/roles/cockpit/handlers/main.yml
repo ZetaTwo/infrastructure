@@ -1,6 +1,0 @@
----
-- name: Restart cockpit socket
-  ansible.builtin.systemd:
-    name: cockpit.socket
-    daemon_reload: true
-    state: restarted

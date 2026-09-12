@@ -1,21 +1,11 @@
 ---
-- name: Deploy demo quadlet
+- name: Template demo manifest
   ansible.builtin.template:
-    src: demo.container.j2
-    dest: /etc/containers/systemd/demo.container
+    src: demo.yaml.j2
+    dest: /etc/rancher/k3s/apps-demo.yaml
     mode: '0644'
-  register: demo_quadlet
 
-- name: Reload systemd and start demo
-  ansible.builtin.systemd:
-    name: demo.service
-    daemon_reload: true
-    state: "{{ 'restarted' if demo_quadlet.changed else 'started' }}"
-    enabled: true
-
-- name: Deploy caddy site for demo
-  ansible.builtin.template:
-    src: demo.caddy.j2
-    dest: /etc/caddy/sites/demo.caddy
-    mode: '0644'
-  notify: Reload caddy
+- name: Apply demo manifest
+  ansible.builtin.command: k3s kubectl apply -f /etc/rancher/k3s/apps-demo.yaml
+  register: apps_demo_apply
+  changed_when: apps_demo_apply.stdout is search('(created|configured)')

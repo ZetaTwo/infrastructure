@@ -23,7 +23,7 @@ variable "admin_zone_id" {
 variable "server_type" {
   description = "Hetzner Cloud server type."
   type        = string
-  default     = "cpx22"
+  default     = "cpx31"
 }
 
 variable "server_location" {
