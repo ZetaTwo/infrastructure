@@ -1,68 +1,62 @@
 ---
-- name: Check whether core components are installed for Flux {{ flux_version }}
-  ansible.builtin.stat:
-    path: "/etc/rancher/k3s/.flux-{{ flux_version }}-core-installed"
-  register: flux_marker
-
-# The release's install.yaml bundles 7 controllers (source, kustomize, helm,
-# notification, image-reflector, image-automation, source-watcher); we only
-# use the first 4 (no Flux-managed image automation or ArtifactGenerators —
-# see README), so install from the per-component manifests bundle instead
-# and skip the other 3 entirely, rather than installing then deleting them.
 - name: Download the Flux manifests bundle for {{ flux_version }}
   ansible.builtin.get_url:
     url: "https://github.com/fluxcd/flux2/releases/download/{{ flux_version }}/manifests.tar.gz"
     dest: /etc/rancher/k3s/flux-manifests.tar.gz
     mode: '0644'
-  when: not flux_marker.stat.exists
 
 - name: Create Flux manifests directory
   ansible.builtin.file:
     path: /etc/rancher/k3s/flux-manifests
     state: directory
     mode: '0755'
-  when: not flux_marker.stat.exists
 
 - name: Extract Flux manifests bundle
   ansible.builtin.unarchive:
     src: /etc/rancher/k3s/flux-manifests.tar.gz
     dest: /etc/rancher/k3s/flux-manifests
     remote_src: true
-  when: not flux_marker.stat.exists
 
 - name: Ensure flux-system namespace exists
-  ansible.builtin.command: k3s kubectl create namespace flux-system
-  register: flux_ns_create
-  changed_when: "'created' in flux_ns_create.stdout"
-  failed_when: flux_ns_create.rc != 0 and 'AlreadyExists' not in flux_ns_create.stderr
-  when: not flux_marker.stat.exists
+  kubernetes.core.k8s:
+    name: flux-system
+    api_version: v1
+    kind: Namespace
+    state: present
 
+# The release's install.yaml bundles 7 controllers (source, kustomize, helm,
+# notification, image-reflector, image-automation, source-watcher); we only
+# use the first 4 (no Flux-managed image automation or ArtifactGenerators —
+# see README), so install from the per-component manifests bundle instead
+# and skip the other 3 entirely, rather than installing then deleting them.
+#
 # The raw per-component files (unlike the pre-built install.yaml) don't
 # carry an explicit namespace — they're meant to be composed via `kustomize
-# build` with a namespace transformer. Passing -n here is required, or
-# every namespaced object (ServiceAccount/Service/Deployment/ResourceQuota/
-# NetworkPolicy) silently lands in the caller's default namespace instead.
+# build` with a namespace transformer. The module's namespace: fills that
+# in for every object in the file that doesn't already have one.
 - name: Install core components for Flux {{ flux_version }}
-  ansible.builtin.command: >-
-    k3s kubectl apply -n flux-system
-    -f /etc/rancher/k3s/flux-manifests/rbac.yaml
-    -f /etc/rancher/k3s/flux-manifests/policies.yaml
-    -f /etc/rancher/k3s/flux-manifests/source-controller.yaml
-    -f /etc/rancher/k3s/flux-manifests/kustomize-controller.yaml
-    -f /etc/rancher/k3s/flux-manifests/helm-controller.yaml
-    -f /etc/rancher/k3s/flux-manifests/notification-controller.yaml
-  when: not flux_marker.stat.exists
+  kubernetes.core.k8s:
+    src: "/etc/rancher/k3s/flux-manifests/{{ item }}"
+    namespace: flux-system
+    state: present
+    apply: true
+  loop:
+    - rbac.yaml
+    - policies.yaml
+    - source-controller.yaml
+    - kustomize-controller.yaml
+    - helm-controller.yaml
+    - notification-controller.yaml
 
 - name: Prune unused Flux components (image automation, source-watcher)
-  ansible.builtin.command: >-
-    k3s kubectl delete -n flux-system -f /etc/rancher/k3s/flux-manifests/{{ item }} --ignore-not-found=true
+  kubernetes.core.k8s:
+    src: "/etc/rancher/k3s/flux-manifests/{{ item }}"
+    namespace: flux-system
+    state: absent
   loop:
     - image-reflector-controller.yaml
     - image-automation-controller.yaml
     - source-watcher.yaml
-  register: flux_prune
-  changed_when: "'deleted' in flux_prune.stdout"
-  when: not flux_marker.stat.exists
 
 - name: Wait for Flux controllers to be available
   ansible.builtin.command: >-
@@ -70,15 +64,7 @@
     deployment/source-controller deployment/kustomize-controller
     deployment/helm-controller deployment/notification-controller
     -n flux-system --timeout=180s
-  when: not flux_marker.stat.exists
   changed_when: false
-
-- name: Mark Flux core components as installed
-  ansible.builtin.file:
-    path: "/etc/rancher/k3s/.flux-{{ flux_version }}-core-installed"
-    state: touch
-    mode: '0644'
-  when: not flux_marker.stat.exists
 
 - name: Fetch GitHub SSH host keys
   ansible.builtin.uri:
@@ -86,66 +72,31 @@
     return_content: true
   register: flux_github_meta
 
-- name: Copy Flux deploy key (private)
-  ansible.builtin.copy:
-    src: flux-infrastructure-deploy-key
-    dest: /etc/rancher/k3s/flux-identity
-    mode: '0600'
-
-- name: Copy Flux deploy key (public)
-  ansible.builtin.copy:
-    src: flux-infrastructure-deploy-key.pub
-    dest: /etc/rancher/k3s/flux-identity.pub
-    mode: '0644'
-
-- name: Write GitHub known_hosts file
-  ansible.builtin.copy:
-    content: "{{ flux_github_meta.json.ssh_keys | map('regex_replace', '(.+)', 'github.com \\1') | join('\n') }}"
-    dest: /etc/rancher/k3s/flux-known-hosts
-    mode: '0644'
-
-- name: Render Flux git auth secret manifest
-  ansible.builtin.command: >-
-    k3s kubectl create secret generic flux-system
-    --from-file=identity=/etc/rancher/k3s/flux-identity
-    --from-file=identity.pub=/etc/rancher/k3s/flux-identity.pub
-    --from-file=known_hosts=/etc/rancher/k3s/flux-known-hosts
-    -n flux-system --dry-run=client -o yaml
-  register: flux_git_secret_manifest
-  changed_when: false
-
-- name: Write Flux git auth secret manifest
-  ansible.builtin.copy:
-    content: "{{ flux_git_secret_manifest.stdout }}"
-    dest: /etc/rancher/k3s/flux-git-secret.yaml
-    mode: '0600'
-  register: flux_git_secret
-
 - name: Apply Flux git auth secret
-  ansible.builtin.command: k3s kubectl apply -f /etc/rancher/k3s/flux-git-secret.yaml
-  when: flux_git_secret.changed
-
-- name: Template Flux GitRepository
-  ansible.builtin.template:
-    src: git-repository.yaml.j2
-    dest: /etc/rancher/k3s/flux-git-repository.yaml
-    mode: '0644'
-  register: flux_git_repository
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: flux-system
+        namespace: flux-system
+      type: Opaque
+      stringData:
+        identity: "{{ lookup('file', role_path + '/files/flux-infrastructure-deploy-key') }}"
+        identity.pub: "{{ lookup('file', role_path + '/files/flux-infrastructure-deploy-key.pub') }}"
+        known_hosts: "{{ flux_github_meta.json.ssh_keys | map('regex_replace', '(.+)', 'github.com \\1') | join('\n') }}"
+  no_log: true
 
 - name: Apply Flux GitRepository
-  ansible.builtin.command: k3s kubectl apply -f /etc/rancher/k3s/flux-git-repository.yaml
-  when: flux_git_repository.changed
-
-- name: Template Flux Kustomization
-  ansible.builtin.template:
-    src: flux-kustomization.yaml.j2
-    dest: /etc/rancher/k3s/flux-kustomization.yaml
-    mode: '0644'
-  register: flux_kustomization
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'git-repository.yaml.j2') | from_yaml }}"
 
 - name: Apply Flux Kustomization
-  ansible.builtin.command: k3s kubectl apply -f /etc/rancher/k3s/flux-kustomization.yaml
-  when: flux_kustomization.changed
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'flux-kustomization.yaml.j2') | from_yaml }}"
 
 - name: Wait for the GitRepository to be ready
   ansible.builtin.command: >-

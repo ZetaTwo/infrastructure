@@ -1,36 +1,25 @@
 ---
 - name: Ensure namespaces for ghcr-pull-secret exist
-  ansible.builtin.command: k3s kubectl create namespace {{ item }}
-  register: ghcr_pull_secret_ns_create
-  changed_when: "'created' in ghcr_pull_secret_ns_create.stdout"
-  failed_when: ghcr_pull_secret_ns_create.rc != 0 and 'AlreadyExists' not in ghcr_pull_secret_ns_create.stderr
+  kubernetes.core.k8s:
+    name: "{{ item }}"
+    api_version: v1
+    kind: Namespace
+    state: present
   loop: "{{ ghcr_pull_secret_namespaces }}"
-
-- name: Render GHCR pull secret manifest
-  ansible.builtin.command: >-
-    k3s kubectl create secret docker-registry ghcr-pull-secret
-    --docker-server=ghcr.io
-    --docker-username={{ ghcr_pull_username }}
-    --docker-password={{ ghcr_pull_token }}
-    -n {{ item }} --dry-run=client -o yaml
-  register: ghcr_pull_secret_manifest
-  changed_when: false
-  no_log: true
-  loop: "{{ ghcr_pull_secret_namespaces }}"
-
-- name: Write GHCR pull secret manifests
-  ansible.builtin.copy:
-    content: "{{ item.stdout }}"
-    dest: "/etc/rancher/k3s/ghcr-pull-secret-{{ item.item }}.yaml"
-    mode: '0600'
-  register: ghcr_pull_secret_file
-  loop: "{{ ghcr_pull_secret_manifest.results }}"
-  loop_control:
-    label: "{{ item.item }}"
 
 - name: Apply GHCR pull secrets
-  ansible.builtin.command: k3s kubectl apply -f /etc/rancher/k3s/ghcr-pull-secret-{{ item.item.item }}.yaml
-  loop: "{{ ghcr_pull_secret_file.results }}"
-  loop_control:
-    label: "{{ item.item.item }}"
-  when: item.changed
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: ghcr-pull-secret
+        namespace: "{{ item }}"
+      type: kubernetes.io/dockerconfigjson
+      stringData:
+        .dockerconfigjson: >-
+          {{ {'auths': {'ghcr.io': {'username': ghcr_pull_username, 'password': ghcr_pull_token,
+          'auth': (ghcr_pull_username ~ ':' ~ ghcr_pull_token) | b64encode}}} | to_json }}
+  loop: "{{ ghcr_pull_secret_namespaces }}"
+  no_log: true

@@ -157,18 +157,19 @@ If the app needs a secret that shouldn't live in git (API keys, credentials
 files), it does **not** go through Flux — add a small dedicated Ansible
 role that keeps the secret material as `ansible-vault`-encrypted files
 under the role's own `files/` directory (`ansible-vault encrypt <file>`),
-copies them to the node, ensures the app's namespace exists
-(`kubectl create namespace <name>`, tolerating `AlreadyExists` — ordering
-against Flux creating the same namespace from `k8s/<name>/namespace.yaml`
-isn't guaranteed, so both sides create it idempotently), and builds the
-`Secret` with `kubectl create secret generic ... --from-file=...
---dry-run=client -o yaml | kubectl apply -f -`. Follow
-`ansible/roles/aoe2_groups_proxy` as the reference (named after the app,
-not "secrets," since it's that app's whole Ansible footprint and may end up
-doing more than secrets later). The app's Deployment (in `k8s/`) references
-that Secret by name only; Flux never sees or manages it. This deliberately
-avoids adding a second secrets-encryption system (e.g. SOPS) alongside
-`ansible-vault`.
+ensures the app's namespace exists (a `kubernetes.core.k8s` `Namespace`
+task — ordering against Flux creating the same namespace from
+`k8s/<name>/namespace.yaml` isn't guaranteed, so both sides create it
+idempotently), and applies the `Secret` as a `kubernetes.core.k8s` task
+with an inline `definition:`, reading the encrypted files straight into
+`stringData` via `lookup('file', role_path + '/files/...')` (which
+transparently decrypts them) — nothing is ever written to disk on the
+node. Follow `ansible/roles/aoe2_groups_proxy` as the reference (named
+after the app, not "secrets," since it's that app's whole Ansible
+footprint and may end up doing more than secrets later). The app's
+Deployment (in `k8s/`) references that Secret by name only; Flux never
+sees or manages it. This deliberately avoids adding a second
+secrets-encryption system (e.g. SOPS) alongside `ansible-vault`.
 
 Private images: `ghcr-pull-secret` (`ansible/roles/ghcr_pull_secret`)
 exists for pulling private `ghcr.io` images — reference it from any app's
