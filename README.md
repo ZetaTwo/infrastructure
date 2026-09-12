@@ -85,19 +85,20 @@ version change is a no-op.
 ## Accessing the cluster
 
 There is no public route to the Kubernetes API (port 6443 is not opened in
-`terraform/firewall.tf`). Run `kubectl` on the box itself over SSH, using its
-DNS name (`terraform/dns.tf`'s `cluster_node` record — see Domains below)
-rather than its raw IP:
+`terraform/firewall.tf`). Run `kubectl` on a node over SSH, using its DNS
+name (`terraform/dns.tf`'s `cluster_node` records — `node1.zetatwo.dev`,
+`node2.zetatwo.dev`, ... one per `var.node_count`, see Domains below) rather
+than its raw IP:
 
 ```sh
-ssh root@cluster-node.zetatwo.dev k3s kubectl get nodes
+ssh root@node1.zetatwo.dev k3s kubectl get nodes
 ```
 
 or tunnel the API port and use a local `kubectl` with the node's kubeconfig
 (`/etc/rancher/k3s/k3s.yaml`, fetched over SSH):
 
 ```sh
-ssh -L 6443:localhost:6443 root@cluster-node.zetatwo.dev
+ssh -L 6443:localhost:6443 root@node1.zetatwo.dev
 ```
 
 ## Adding a new app
@@ -143,6 +144,12 @@ Podman+Caddy to k3s, rather than carried over 1:1:
   a lightweight updater (a `CronJob` doing `kubectl rollout restart`, or a
   tool like Keel), or moving to a GitOps model (Flux/Argo CD reconciling
   manifests from this repo) instead of Ansible-driven `kubectl apply`.
+- **Multi-node clustering.** `var.node_count` (`terraform/variables.tf`)
+  scaffolds multiple node servers and DNS records (`node1`, `node2`, ...),
+  but nodes don't join each other as a k3s cluster yet — bumping it above 1
+  today just creates independent single-node servers. Needs k3s
+  server/agent join logic (a shared cluster token, one initial server node)
+  before it's actually usable.
 
 ## Admin login (zetatwo)
 
@@ -153,7 +160,8 @@ The `users` role creates a single non-root admin account, `zetatwo`, in the
 
 ```sh
 mkpasswd --method=yescrypt
-ansible-vault encrypt_string '<the hash>' --name zetatwo_password_hash
+ansible-vault encrypt_string '<the hash>' --name zetatwo_password_hash \
+  --vault-password-file ansible/.vault_pass
 ```
 
 Append the resulting block to `ansible/group_vars/all.yml`.
@@ -162,6 +170,12 @@ Ansible itself still connects and manages the box as `root` over SSH
 (`ansible_user: root` in the generated inventory) — `zetatwo` is for
 interactive SSH login, not for Ansible's own access.
 
+`ansible/roles/sshd` disables SSH password authentication entirely
+(`PasswordAuthentication no`) — only key-based login works (root's
+Hetzner-provisioned key, and `zetatwo`'s key from
+`https://github.com/zetatwo.keys`). `zetatwo_password_hash` is only ever
+used for local `sudo`, never for remote login.
+
 ## Domains
 
 Cloudflare zones are declared as a label → zone ID map,
@@ -169,12 +183,13 @@ Cloudflare zones are declared as a label → zone ID map,
 any specific purpose — any DNS record or app can use any label. Currently:
 
 - `zetatwo_com` → `zeta-two.com` — hobby apps, e.g. `demo.zeta-two.com`.
-- `zetatwo_dev` → `zetatwo.dev` — hosts `cluster-node.zetatwo.dev`, the
-  node's own DNS name (used as the SSH/Ansible target instead of its raw
-  IP, see `terraform/dns.tf` and `terraform/inventory.tf`). Otherwise
-  reserved for future admin/management surfaces (see the TODOs above), but
-  nothing stops it being used for something else too — e.g. dev instances
-  at `dev.zetatwo.dev` would just be another record on the `zetatwo_dev`
+- `zetatwo_dev` → `zetatwo.dev` — hosts each node's own DNS name
+  (`node1.zetatwo.dev`, `node2.zetatwo.dev`, ... one per `var.node_count`,
+  used as the SSH/Ansible target instead of a raw IP, see `terraform/dns.tf`
+  and `terraform/inventory.tf`). Otherwise reserved for future
+  admin/management surfaces (see the TODOs above), but nothing stops it
+  being used for something else too — e.g. dev instances at
+  `dev.zetatwo.dev` would just be another record on the `zetatwo_dev`
   label.
 
 The zone IDs are the single source of truth: Terraform looks up each zone's
