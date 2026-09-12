@@ -13,4 +13,5 @@ ansible-apply:
 	cd ansible && ansible-playbook site.yaml --vault-password-file .vault_pass
 
 lint:
-	cd ansible && ansible-lint site.yaml
+	cd ansible && uvx --from ansible-core ansible-galaxy collection install -r requirements.yml
+	cd ansible && uvx ansible-lint

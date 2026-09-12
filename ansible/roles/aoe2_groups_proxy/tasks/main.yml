@@ -1,9 +1,9 @@
 ---
 - name: Ensure aoe2-groups-proxy namespace exists
   ansible.builtin.command: k3s kubectl create namespace aoe2-groups-proxy
-  register: aoe2_ns_create
-  changed_when: "'created' in aoe2_ns_create.stdout"
-  failed_when: aoe2_ns_create.rc != 0 and 'AlreadyExists' not in aoe2_ns_create.stderr
+  register: aoe2_groups_proxy_ns_create
+  changed_when: "'created' in aoe2_groups_proxy_ns_create.stdout"
+  failed_when: aoe2_groups_proxy_ns_create.rc != 0 and 'AlreadyExists' not in aoe2_groups_proxy_ns_create.stderr
 
 - name: Copy aoe2-groups-proxy service account key
   ansible.builtin.copy:
@@ -23,16 +23,16 @@
     --from-file=service-account.json=/etc/rancher/k3s/aoe2-groups-proxy-service-account.json
     --from-file=sheet-ids.toml=/etc/rancher/k3s/aoe2-groups-proxy-sheet-ids.toml
     -n aoe2-groups-proxy --dry-run=client -o yaml
-  register: aoe2_secret_manifest
+  register: aoe2_groups_proxy_secret_manifest
   changed_when: false
 
 - name: Write aoe2-groups-proxy secret manifest
   ansible.builtin.copy:
-    content: "{{ aoe2_secret_manifest.stdout }}"
+    content: "{{ aoe2_groups_proxy_secret_manifest.stdout }}"
     dest: /etc/rancher/k3s/aoe2-groups-proxy-secret.yaml
     mode: '0600'
-  register: aoe2_secret_file
+  register: aoe2_groups_proxy_secret_file
 
 - name: Apply aoe2-groups-proxy secret
   ansible.builtin.command: k3s kubectl apply -f /etc/rancher/k3s/aoe2-groups-proxy-secret.yaml
-  when: aoe2_secret_file.changed
+  when: aoe2_groups_proxy_secret_file.changed

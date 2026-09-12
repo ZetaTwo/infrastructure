@@ -29,8 +29,8 @@ flux_version: v2.9.5
 # they're ansible-vault-encrypted files instead:
 #   ansible/roles/flux/files/flux-infrastructure-deploy-key      (encrypted)
 #   ansible/roles/flux/files/flux-infrastructure-deploy-key.pub  (plain — not a secret)
-#   ansible/roles/aoe2-groups-proxy/files/service-account.json    (encrypted)
-#   ansible/roles/aoe2-groups-proxy/files/sheet-ids.toml           (encrypted)
+#   ansible/roles/aoe2_groups_proxy/files/service-account.json    (encrypted)
+#   ansible/roles/aoe2_groups_proxy/files/sheet-ids.toml           (encrypted)
 # See README.md for the full bootstrap steps (ansible-vault encrypt <file>).
 # GitHub's SSH host keys are fetched live from https://api.github.com/meta
 # by ansible/roles/flux — nothing to store for those either.

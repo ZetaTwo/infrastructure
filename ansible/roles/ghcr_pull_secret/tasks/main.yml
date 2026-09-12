@@ -1,9 +1,9 @@
 ---
 - name: Ensure namespaces for ghcr-pull-secret exist
   ansible.builtin.command: k3s kubectl create namespace {{ item }}
-  register: ghcr_ns_create
-  changed_when: "'created' in ghcr_ns_create.stdout"
-  failed_when: ghcr_ns_create.rc != 0 and 'AlreadyExists' not in ghcr_ns_create.stderr
+  register: ghcr_pull_secret_ns_create
+  changed_when: "'created' in ghcr_pull_secret_ns_create.stdout"
+  failed_when: ghcr_pull_secret_ns_create.rc != 0 and 'AlreadyExists' not in ghcr_pull_secret_ns_create.stderr
   loop: "{{ ghcr_pull_secret_namespaces }}"
 
 - name: Render GHCR pull secret manifest

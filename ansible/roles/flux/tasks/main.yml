@@ -1,5 +1,5 @@
 ---
-- name: Check whether Flux {{ flux_version }} core components are installed
+- name: Check whether core components are installed for Flux {{ flux_version }}
   ansible.builtin.stat:
     path: "/etc/rancher/k3s/.flux-{{ flux_version }}-core-installed"
   register: flux_marker
@@ -9,10 +9,11 @@
 # use the first 4 (no Flux-managed image automation or ArtifactGenerators —
 # see README), so install from the per-component manifests bundle instead
 # and skip the other 3 entirely, rather than installing then deleting them.
-- name: Download Flux {{ flux_version }} manifests bundle
+- name: Download the Flux manifests bundle for {{ flux_version }}
   ansible.builtin.get_url:
     url: "https://github.com/fluxcd/flux2/releases/download/{{ flux_version }}/manifests.tar.gz"
     dest: /etc/rancher/k3s/flux-manifests.tar.gz
+    mode: '0644'
   when: not flux_marker.stat.exists
 
 - name: Create Flux manifests directory
@@ -41,7 +42,7 @@
 # build` with a namespace transformer. Passing -n here is required, or
 # every namespaced object (ServiceAccount/Service/Deployment/ResourceQuota/
 # NetworkPolicy) silently lands in the caller's default namespace instead.
-- name: Install Flux {{ flux_version }} core components
+- name: Install core components for Flux {{ flux_version }}
   ansible.builtin.command: >-
     k3s kubectl apply -n flux-system
     -f /etc/rancher/k3s/flux-manifests/rbac.yaml
@@ -83,7 +84,7 @@
   ansible.builtin.uri:
     url: https://api.github.com/meta
     return_content: true
-  register: github_meta
+  register: flux_github_meta
 
 - name: Copy Flux deploy key (private)
   ansible.builtin.copy:
@@ -99,7 +100,7 @@
 
 - name: Write GitHub known_hosts file
   ansible.builtin.copy:
-    content: "{{ github_meta.json.ssh_keys | map('regex_replace', '(.+)', 'github.com \\1') | join('\n') }}"
+    content: "{{ flux_github_meta.json.ssh_keys | map('regex_replace', '(.+)', 'github.com \\1') | join('\n') }}"
     dest: /etc/rancher/k3s/flux-known-hosts
     mode: '0644'
 

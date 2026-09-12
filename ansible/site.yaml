@@ -8,5 +8,5 @@
     - sshd
     - k3s
     - flux
-    - ghcr-pull-secret
-    - aoe2-groups-proxy
+    - ghcr_pull_secret
+    - aoe2_groups_proxy

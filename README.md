@@ -163,14 +163,14 @@ against Flux creating the same namespace from `k8s/<name>/namespace.yaml`
 isn't guaranteed, so both sides create it idempotently), and builds the
 `Secret` with `kubectl create secret generic ... --from-file=...
 --dry-run=client -o yaml | kubectl apply -f -`. Follow
-`ansible/roles/aoe2-groups-proxy` as the reference (named after the app,
+`ansible/roles/aoe2_groups_proxy` as the reference (named after the app,
 not "secrets," since it's that app's whole Ansible footprint and may end up
 doing more than secrets later). The app's Deployment (in `k8s/`) references
 that Secret by name only; Flux never sees or manages it. This deliberately
 avoids adding a second secrets-encryption system (e.g. SOPS) alongside
 `ansible-vault`.
 
-Private images: `ghcr-pull-secret` (`ansible/roles/ghcr-pull-secret`)
+Private images: `ghcr-pull-secret` (`ansible/roles/ghcr_pull_secret`)
 exists for pulling private `ghcr.io` images — reference it from any app's
 Deployment with `imagePullSecrets: [{name: ghcr-pull-secret}]` (see
 `k8s/aoe2-groups-overlay/deployment.yaml`). Since k8s Secrets can't be
@@ -255,10 +255,10 @@ need a bootstrap step: `ansible/roles/flux` fetches them live from
    ```
 2. Move both into the role's `files/` and vault-encrypt them in place:
    ```sh
-   mv service-account.json sheet-ids.toml ansible/roles/aoe2-groups-proxy/files/
-   ansible-vault encrypt ansible/roles/aoe2-groups-proxy/files/service-account.json \
+   mv service-account.json sheet-ids.toml ansible/roles/aoe2_groups_proxy/files/
+   ansible-vault encrypt ansible/roles/aoe2_groups_proxy/files/service-account.json \
      --vault-password-file ansible/.vault_pass
-   ansible-vault encrypt ansible/roles/aoe2-groups-proxy/files/sheet-ids.toml \
+   ansible-vault encrypt ansible/roles/aoe2_groups_proxy/files/sheet-ids.toml \
      --vault-password-file ansible/.vault_pass
    ```
 3. `make ansible-apply`.

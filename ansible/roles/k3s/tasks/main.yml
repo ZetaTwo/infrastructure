@@ -28,23 +28,23 @@
   ansible.builtin.command: k3s kubectl wait --for=condition=Ready node --all --timeout=120s
   changed_when: false
 
-- name: Check whether cert-manager {{ cert_manager_version }} is already installed
+- name: Check whether cert-manager is already installed at {{ cert_manager_version }}
   ansible.builtin.stat:
     path: "/etc/rancher/k3s/.cert-manager-{{ cert_manager_version }}-installed"
-  register: cert_manager_marker
+  register: k3s_cert_manager_marker
 
 - name: Install cert-manager {{ cert_manager_version }}
   ansible.builtin.command: >-
     k3s kubectl apply -f
     https://github.com/cert-manager/cert-manager/releases/download/{{ cert_manager_version }}/cert-manager.yaml
-  when: not cert_manager_marker.stat.exists
+  when: not k3s_cert_manager_marker.stat.exists
 
 - name: Wait for cert-manager deployments to be available
   ansible.builtin.command: >-
     k3s kubectl wait --for=condition=Available
     deployment/cert-manager deployment/cert-manager-webhook deployment/cert-manager-cainjector
     -n cert-manager --timeout=180s
-  when: not cert_manager_marker.stat.exists
+  when: not k3s_cert_manager_marker.stat.exists
   changed_when: false
 
 - name: Mark cert-manager as installed
@@ -52,15 +52,15 @@
     path: "/etc/rancher/k3s/.cert-manager-{{ cert_manager_version }}-installed"
     state: touch
     mode: '0644'
-  when: not cert_manager_marker.stat.exists
+  when: not k3s_cert_manager_marker.stat.exists
 
 - name: Deploy Let's Encrypt ClusterIssuer
   ansible.builtin.template:
     src: cluster-issuer.yaml.j2
     dest: /etc/rancher/k3s/cluster-issuer.yaml
     mode: '0644'
-  register: cluster_issuer
+  register: k3s_cluster_issuer
 
 - name: Apply ClusterIssuer
   ansible.builtin.command: k3s kubectl apply -f /etc/rancher/k3s/cluster-issuer.yaml
-  when: cluster_issuer.changed
+  when: k3s_cluster_issuer.changed
