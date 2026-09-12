@@ -129,8 +129,13 @@ Terraform changes needed for the deployment itself:
    (on `var.cloudflare_zones["zetatwo_com"]` for a public app — or any other
    label in `cloudflare_zones` if it belongs elsewhere), then `make tf-apply`.
 2. Create `k8s/<name>/{deployment,service,ingress}.yaml` and a
-   `k8s/<name>/kustomization.yaml` listing them — follow
-   `k8s/aoe2-groups-overlay/` as the reference. Ingress should be annotated
+   `k8s/<name>/kustomization.yaml` listing them, with a top-level
+   `namespace: default` in that file — follow `k8s/aoe2-groups-overlay/`
+   as the reference. The explicit namespace matters: unlike plain
+   `kubectl apply`, Flux's kustomize-controller does **not** default
+   un-namespaced resources to `default` and fails with a confusing
+   `namespace not specified: the server could not find the requested
+   resource` error instead. Ingress should be annotated
    `cert-manager.io/cluster-issuer: letsencrypt-prod` with
    `ingressClassName: traefik`, so cert-manager issues/renews its
    certificate automatically via HTTP-01 through Traefik.
