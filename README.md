@@ -135,15 +135,18 @@ Terraform changes needed for the deployment itself:
 1. Add a Cloudflare A record for the new hostname in `terraform/dns.tf`
    (on `var.cloudflare_zones["zetatwo_com"]` for a public app — or any other
    label in `cloudflare_zones` if it belongs elsewhere), then `make tf-apply`.
-2. Create `k8s/<name>/{deployment,service,ingress}.yaml` and a
-   `k8s/<name>/kustomization.yaml` listing them, with a top-level
-   `namespace: default` in that file — follow `k8s/aoe2-groups-overlay/`
-   as the reference. The explicit namespace matters: unlike plain
-   `kubectl apply`, Flux's kustomize-controller does **not** default
-   un-namespaced resources to `default` and fails with a confusing
-   `namespace not specified: the server could not find the requested
-   resource` error instead. Ingress should be annotated
-   `cert-manager.io/cluster-issuer: letsencrypt-prod` with
+2. Each app gets its own namespace. Create
+   `k8s/<name>/{namespace,deployment,service,ingress}.yaml` and a
+   `k8s/<name>/kustomization.yaml` listing them (`namespace.yaml` included
+   as a resource, plus a top-level `namespace: <name>` in that file) —
+   follow `k8s/aoe2-groups-overlay/` as the reference. The explicit
+   namespace matters: unlike plain `kubectl apply`, Flux's
+   kustomize-controller does **not** default un-namespaced resources to
+   `default` and fails with a confusing `namespace not specified: the
+   server could not find the requested resource` error instead — the
+   `namespace:` transformer handles this correctly and leaves the
+   cluster-scoped `Namespace` object itself untouched. Ingress should be
+   annotated `cert-manager.io/cluster-issuer: letsencrypt-prod` with
    `ingressClassName: traefik`, so cert-manager issues/renews its
    certificate automatically via HTTP-01 through Traefik.
 3. Add `<name>` to `resources` in `k8s/kustomization.yaml`.
@@ -154,9 +157,12 @@ If the app needs a secret that shouldn't live in git (API keys, credentials
 files), it does **not** go through Flux — add a small dedicated Ansible
 role that keeps the secret material as `ansible-vault`-encrypted files
 under the role's own `files/` directory (`ansible-vault encrypt <file>`),
-copies them to the node, and builds the `Secret` with
-`kubectl create secret generic ... --from-file=... --dry-run=client -o yaml
-| kubectl apply -f -` for idempotent apply. Follow
+copies them to the node, ensures the app's namespace exists
+(`kubectl create namespace <name>`, tolerating `AlreadyExists` — ordering
+against Flux creating the same namespace from `k8s/<name>/namespace.yaml`
+isn't guaranteed, so both sides create it idempotently), and builds the
+`Secret` with `kubectl create secret generic ... --from-file=...
+--dry-run=client -o yaml | kubectl apply -f -`. Follow
 `ansible/roles/aoe2-groups-proxy` as the reference (named after the app,
 not "secrets," since it's that app's whole Ansible footprint and may end up
 doing more than secrets later). The app's Deployment (in `k8s/`) references
@@ -164,15 +170,17 @@ that Secret by name only; Flux never sees or manages it. This deliberately
 avoids adding a second secrets-encryption system (e.g. SOPS) alongside
 `ansible-vault`.
 
-Private images: a single shared `ghcr-pull-secret` (`ansible/roles/
-ghcr-pull-secret`, `default` namespace) exists for pulling private
-`ghcr.io` images — reference it from any app's Deployment with
-`imagePullSecrets: [{name: ghcr-pull-secret}]` (see
-`k8s/aoe2-groups-overlay/deployment.yaml`). One shared secret covers every
-app; no per-app pull secret needed. Note that GitHub package visibility is
-one-way — once a package is made public it can't be made private again —
-so `aoe2-groups-proxy` stays private and pulls via this secret rather than
-being flipped public.
+Private images: `ghcr-pull-secret` (`ansible/roles/ghcr-pull-secret`)
+exists for pulling private `ghcr.io` images — reference it from any app's
+Deployment with `imagePullSecrets: [{name: ghcr-pull-secret}]` (see
+`k8s/aoe2-groups-overlay/deployment.yaml`). Since k8s Secrets can't be
+referenced across namespaces, the role loops over
+`ghcr_pull_secret_namespaces` (`group_vars/all.yml`) and creates one copy
+of the same underlying token per namespace — add a new app's namespace to
+that list if it needs private image pulls, no other Ansible changes
+needed. Note that GitHub package visibility is one-way — once a package is
+made public it can't be made private again — so `aoe2-groups-proxy` stays
+private and pulls via this secret rather than being flipped public.
 
 Image updates: CI (in the app's own repo) builds and pushes an image, then
 commits an update to the image tag in `k8s/<name>/deployment.yaml` and

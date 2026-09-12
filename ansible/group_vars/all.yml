@@ -40,6 +40,14 @@ flux_version: v2.9.5
 # paired PAT (ghcr_pull_token, below) is what's sensitive.
 ghcr_pull_username: "ZetaTwo"
 
+# ghcr_pull_secret_namespaces lists every namespace that needs a copy of
+# ghcr-pull-secret — k8s Secrets can't be referenced across namespaces, so
+# each app namespace pulling a private ghcr.io image needs its own copy of
+# the same underlying token. Add a namespace here when a new app needs it;
+# no other Ansible changes required.
+ghcr_pull_secret_namespaces:
+  - aoe2-groups-proxy
+
 # ghcr_pull_token is a GitHub PAT with read-only package access
 # (fine-grained: "Packages: Read-only"; classic: read:packages scope),
 # belonging to an account with access to the private ghcr.io packages —
