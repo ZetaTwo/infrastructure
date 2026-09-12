@@ -83,9 +83,9 @@
         namespace: flux-system
       type: Opaque
       stringData:
-        identity: "{{ lookup('file', role_path + '/files/flux-infrastructure-deploy-key') }}"
-        identity.pub: "{{ lookup('file', role_path + '/files/flux-infrastructure-deploy-key.pub') }}"
-        known_hosts: "{{ flux_github_meta.json.ssh_keys | map('regex_replace', '(.+)', 'github.com \\1') | join('\n') }}"
+        identity: "{{ lookup('file', 'flux-infrastructure-deploy-key') | string }}"
+        identity.pub: "{{ lookup('file', 'flux-infrastructure-deploy-key.pub') | string }}"
+        known_hosts: "{{ (flux_github_meta.json.ssh_keys | map('regex_replace', '(.+)', 'github.com \\1') | join('\n')) | string }}"
   no_log: true
 
 - name: Apply Flux GitRepository

@@ -19,7 +19,7 @@
       type: kubernetes.io/dockerconfigjson
       stringData:
         .dockerconfigjson: >-
-          {{ {'auths': {'ghcr.io': {'username': ghcr_pull_username, 'password': ghcr_pull_token,
-          'auth': (ghcr_pull_username ~ ':' ~ ghcr_pull_token) | b64encode}}} | to_json }}
+          {{ ({'auths': {'ghcr.io': {'username': ghcr_pull_username, 'password': ghcr_pull_token,
+          'auth': (ghcr_pull_username ~ ':' ~ ghcr_pull_token) | b64encode}}} | to_json) | string }}
   loop: "{{ ghcr_pull_secret_namespaces }}"
   no_log: true

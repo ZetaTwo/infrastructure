@@ -17,6 +17,6 @@
         namespace: aoe2-groups-proxy
       type: Opaque
       stringData:
-        service-account.json: "{{ lookup('file', role_path + '/files/service-account.json') }}"
-        sheet-ids.toml: "{{ lookup('file', role_path + '/files/sheet-ids.toml') }}"
+        service-account.json: "{{ lookup('file', 'service-account.json') | string }}"
+        sheet-ids.toml: "{{ lookup('file', 'sheet-ids.toml') | string }}"
   no_log: true
