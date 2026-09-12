@@ -1,0 +1,22 @@
+---
+- name: Ensure aoe2-tournament-bot namespace exists
+  kubernetes.core.k8s:
+    name: aoe2-tournament-bot
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Apply aoe2-tournament-bot secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: aoe2-tournament-bot-secrets
+        namespace: aoe2-tournament-bot
+      type: Opaque
+      stringData:
+        config.toml: "{{ lookup('file', role_path + '/files/config.toml') }}"
+        service-account.json: "{{ lookup('file', role_path + '/files/service-account.json') }}"
+  no_log: true

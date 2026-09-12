@@ -132,22 +132,26 @@ aggregated by the root `k8s/kustomization.yaml`. **Adding a new app is: add
 a subdirectory + one line in the root file + `git push`** — no Ansible or
 Terraform changes needed for the deployment itself:
 
-1. Add a Cloudflare A record for the new hostname in `terraform/dns.tf`
-   (on `var.cloudflare_zones["zetatwo_com"]` for a public app — or any other
-   label in `cloudflare_zones` if it belongs elsewhere), then `make tf-apply`.
+1. **Web apps only**: add a Cloudflare A record for the new hostname in
+   `terraform/dns.tf` (on `var.cloudflare_zones["zetatwo_com"]` for a public
+   app — or any other label in `cloudflare_zones` if it belongs elsewhere),
+   then `make tf-apply`. Skip this for a headless app with no inbound
+   traffic (e.g. `k8s/aoe2-tournament-bot/` — a Discord bot with no
+   Service/Ingress at all, just a `Deployment`).
 2. Each app gets its own namespace. Create
-   `k8s/<name>/{namespace,deployment,service,ingress}.yaml` and a
-   `k8s/<name>/kustomization.yaml` listing them (`namespace.yaml` included
-   as a resource, plus a top-level `namespace: <name>` in that file) —
-   follow `k8s/aoe2-groups-overlay/` as the reference. The explicit
-   namespace matters: unlike plain `kubectl apply`, Flux's
+   `k8s/<name>/{namespace,deployment}.yaml` (plus `service.yaml`/
+   `ingress.yaml` if it's a web app) and a `k8s/<name>/kustomization.yaml`
+   listing them (`namespace.yaml` included as a resource, plus a top-level
+   `namespace: <name>` in that file) — follow `k8s/aoe2-groups-overlay/`
+   (web app) or `k8s/aoe2-tournament-bot/` (headless) as the reference. The
+   explicit namespace matters: unlike plain `kubectl apply`, Flux's
    kustomize-controller does **not** default un-namespaced resources to
    `default` and fails with a confusing `namespace not specified: the
    server could not find the requested resource` error instead — the
    `namespace:` transformer handles this correctly and leaves the
-   cluster-scoped `Namespace` object itself untouched. Ingress should be
-   annotated `cert-manager.io/cluster-issuer: letsencrypt-prod` with
-   `ingressClassName: traefik`, so cert-manager issues/renews its
+   cluster-scoped `Namespace` object itself untouched. If it does need an
+   Ingress, annotate it `cert-manager.io/cluster-issuer: letsencrypt-prod`
+   with `ingressClassName: traefik`, so cert-manager issues/renews its
    certificate automatically via HTTP-01 through Traefik.
 3. Add `<name>` to `resources` in `k8s/kustomization.yaml`.
 4. `git push` to `main`. Flux reconciles within ~1 minute (no
@@ -260,6 +264,28 @@ need a bootstrap step: `ansible/roles/flux` fetches them live from
    ansible-vault encrypt ansible/roles/aoe2_groups_proxy/files/service-account.json \
      --vault-password-file ansible/.vault_pass
    ansible-vault encrypt ansible/roles/aoe2_groups_proxy/files/sheet-ids.toml \
+     --vault-password-file ansible/.vault_pass
+   ```
+3. `make ansible-apply`.
+
+### One-time aoe2-tournament-bot secrets bootstrap
+
+1. Export the runtime service account's key and fetch the real
+   `config.toml` (Discord token, admin user IDs, GCS bucket, Sheet ID):
+   ```sh
+   gcloud iam service-accounts keys create service-account.json \
+     --iam-account=tournament-bot@aoe2-tournaments.iam.gserviceaccount.com \
+     --project=aoe2-tournaments
+   gcloud secrets versions access latest \
+     --secret=aoe2-tournament-bot-config --project=aoe2-tournaments \
+     > config.toml
+   ```
+2. Move both into the role's `files/` and vault-encrypt them in place:
+   ```sh
+   mv service-account.json config.toml ansible/roles/aoe2_tournament_bot/files/
+   ansible-vault encrypt ansible/roles/aoe2_tournament_bot/files/service-account.json \
+     --vault-password-file ansible/.vault_pass
+   ansible-vault encrypt ansible/roles/aoe2_tournament_bot/files/config.toml \
      --vault-password-file ansible/.vault_pass
    ```
 3. `make ansible-apply`.

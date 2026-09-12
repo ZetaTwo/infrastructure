@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aoe2-tournament-bot
+  labels:
+    app: aoe2-tournament-bot
+spec:
+  # Discord gateway is a single persistent WebSocket — exactly one replica,
+  # never autoscaled (matches the old Cloud Run Worker Pool's
+  # manual_instance_count = 1). No Service/Ingress: this isn't a web app,
+  # nothing listens for inbound traffic.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aoe2-tournament-bot
+  template:
+    metadata:
+      labels:
+        app: aoe2-tournament-bot
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      containers:
+        - name: aoe2-tournament-bot
+          # REPLACE_ME: set to a real pushed tag (ghcr.io/zetatwo/aoe2-tournament-bot:<git-sha>)
+          # before this manifest is merged to main — CI rewrites this line on every push.
+          image: ghcr.io/zetatwo/aoe2-tournament-bot:REPLACE_ME
+          env:
+            - name: RUST_LOG
+              value: "info,serenity=warn"
+            - name: CONFIG_PATH
+              value: /etc/aoe2-tournament-bot/config.toml
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /etc/aoe2-tournament-bot/service-account.json
+          volumeMounts:
+            - name: aoe2-tournament-bot-secrets
+              mountPath: /etc/aoe2-tournament-bot
+              readOnly: true
+      volumes:
+        - name: aoe2-tournament-bot-secrets
+          secret:
+            secretName: aoe2-tournament-bot-secrets

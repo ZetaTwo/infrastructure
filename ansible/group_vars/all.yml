@@ -24,13 +24,15 @@ letsencrypt_email: "calle.svensson@zeta-two.com"
 #   https://github.com/fluxcd/flux2/releases
 flux_version: v2.9.5
 
-# Flux's git auth (the read-only GitHub Deploy Key) and the aoe2-groups-proxy
-# app secrets (SA key JSON, sheet-ids.toml) are NOT stored as vars here —
+# Flux's git auth (the read-only GitHub Deploy Key) and the per-app secrets
+# (SA key JSONs, sheet-ids.toml, config.toml) are NOT stored as vars here —
 # they're ansible-vault-encrypted files instead:
-#   ansible/roles/flux/files/flux-infrastructure-deploy-key      (encrypted)
-#   ansible/roles/flux/files/flux-infrastructure-deploy-key.pub  (plain — not a secret)
+#   ansible/roles/flux/files/flux-infrastructure-deploy-key       (encrypted)
+#   ansible/roles/flux/files/flux-infrastructure-deploy-key.pub   (plain — not a secret)
 #   ansible/roles/aoe2_groups_proxy/files/service-account.json    (encrypted)
 #   ansible/roles/aoe2_groups_proxy/files/sheet-ids.toml           (encrypted)
+#   ansible/roles/aoe2_tournament_bot/files/config.toml            (encrypted)
+#   ansible/roles/aoe2_tournament_bot/files/service-account.json   (encrypted)
 # See README.md for the full bootstrap steps (ansible-vault encrypt <file>).
 # GitHub's SSH host keys are fetched live from https://api.github.com/meta
 # by ansible/roles/flux — nothing to store for those either.
@@ -47,6 +49,7 @@ ghcr_pull_username: "ZetaTwo"
 # no other Ansible changes required.
 ghcr_pull_secret_namespaces:
   - aoe2-groups-proxy
+  - aoe2-tournament-bot
 
 # ghcr_pull_token is a GitHub PAT with read-only package access
 # (fine-grained: "Packages: Read-only"; classic: read:packages scope),
