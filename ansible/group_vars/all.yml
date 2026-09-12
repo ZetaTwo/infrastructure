@@ -27,13 +27,34 @@ flux_version: v2.9.5
 # Flux's git auth (the read-only GitHub Deploy Key) and the aoe2-groups-proxy
 # app secrets (SA key JSON, sheet-ids.toml) are NOT stored as vars here —
 # they're ansible-vault-encrypted files instead:
-#   ansible/roles/flux/files/flux-deploy-key            (encrypted)
-#   ansible/roles/flux/files/flux-deploy-key.pub         (plain — not a secret)
-#   ansible/roles/aoe2-groups-proxy/files/service-account.json  (encrypted)
-#   ansible/roles/aoe2-groups-proxy/files/sheet-ids.toml         (encrypted)
+#   ansible/roles/flux/files/flux-infrastructure-deploy-key      (encrypted)
+#   ansible/roles/flux/files/flux-infrastructure-deploy-key.pub  (plain — not a secret)
+#   ansible/roles/aoe2-groups-proxy/files/service-account.json    (encrypted)
+#   ansible/roles/aoe2-groups-proxy/files/sheet-ids.toml           (encrypted)
 # See README.md for the full bootstrap steps (ansible-vault encrypt <file>).
 # GitHub's SSH host keys are fetched live from https://api.github.com/meta
 # by ansible/roles/flux — nothing to store for those either.
+
+# ghcr_pull_username is the GitHub account that owns/has read access to the
+# private ghcr.io packages pulled via ghcr-pull-secret. Not a secret — the
+# paired PAT (ghcr_pull_token, below) is what's sensitive.
+ghcr_pull_username: "ZetaTwo"
+
+# ghcr_pull_token is a GitHub PAT with read-only package access
+# (fine-grained: "Packages: Read-only"; classic: read:packages scope),
+# belonging to an account with access to the private ghcr.io packages —
+# vaulted, via:
+#   ansible-vault encrypt_string '<the token>' \
+#     --name ghcr_pull_token --vault-password-file .vault_pass
+# and appending the resulting block to this file.
+ghcr_pull_token: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          39383839353765316130303830336237646330353363373030333162393431393830316232366636
+          3834383933356638376163316232343361396561346462660a366664653830383133336464313839
+          65363563343236386635613362313336316433616364343231343735373235356266633864383464
+          3464623763353634390a363961613061326432356630643734313233363239643331336439393063
+          34643862353133623066386234356633323132643332653033386131353166306339353663663335
+          3738373366643761663733336437616334616330623663376437
 
 # zetatwo_password_hash is a pre-hashed (crypt/shadow-style, e.g. yescrypt)
 # password for the zetatwo admin user — see README.md — via:

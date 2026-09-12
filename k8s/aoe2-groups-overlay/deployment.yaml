@@ -14,6 +14,8 @@ spec:
       labels:
         app: aoe2-groups-proxy
     spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
       containers:
         - name: aoe2-groups-proxy
           # REPLACE_ME: set to a real pushed tag (ghcr.io/zetatwo/aoe2-groups-proxy:<git-sha>)

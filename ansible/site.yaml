@@ -8,4 +8,5 @@
     - sshd
     - k3s
     - flux
+    - ghcr-pull-secret
     - aoe2-groups-proxy

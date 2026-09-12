@@ -1,0 +1,22 @@
+---
+- name: Render GHCR pull secret manifest
+  ansible.builtin.command: >-
+    k3s kubectl create secret docker-registry ghcr-pull-secret
+    --docker-server=ghcr.io
+    --docker-username={{ ghcr_pull_username }}
+    --docker-password={{ ghcr_pull_token }}
+    -n default --dry-run=client -o yaml
+  register: ghcr_pull_secret_manifest
+  changed_when: false
+  no_log: true
+
+- name: Write GHCR pull secret manifest
+  ansible.builtin.copy:
+    content: "{{ ghcr_pull_secret_manifest.stdout }}"
+    dest: /etc/rancher/k3s/ghcr-pull-secret.yaml
+    mode: '0600'
+  register: ghcr_pull_secret_file
+
+- name: Apply GHCR pull secret
+  ansible.builtin.command: k3s kubectl apply -f /etc/rancher/k3s/ghcr-pull-secret.yaml
+  when: ghcr_pull_secret_file.changed

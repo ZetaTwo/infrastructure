@@ -152,6 +152,16 @@ that Secret by name only; Flux never sees or manages it. This deliberately
 avoids adding a second secrets-encryption system (e.g. SOPS) alongside
 `ansible-vault`.
 
+Private images: a single shared `ghcr-pull-secret` (`ansible/roles/
+ghcr-pull-secret`, `default` namespace) exists for pulling private
+`ghcr.io` images — reference it from any app's Deployment with
+`imagePullSecrets: [{name: ghcr-pull-secret}]` (see
+`k8s/aoe2-groups-overlay/deployment.yaml`). One shared secret covers every
+app; no per-app pull secret needed. Note that GitHub package visibility is
+one-way — once a package is made public it can't be made private again —
+so `aoe2-groups-proxy` stays private and pulls via this secret rather than
+being flipped public.
+
 Image updates: CI (in the app's own repo) builds and pushes an image, then
 commits an update to the image tag in `k8s/<name>/deployment.yaml` and
 pushes to `main` — see `aoe2-streaming`'s `.github/workflows/
@@ -192,6 +202,24 @@ need a bootstrap step: `ansible/roles/flux` fetches them live from
 `https://api.github.com/meta` at apply time, the same way
 `ansible/roles/users` already fetches `zetatwo`'s SSH key from
 `https://github.com/zetatwo.keys`.
+
+### One-time GHCR pull secret bootstrap
+
+1. Create a **classic** GitHub Personal Access Token with just the
+   `read:packages` scope, belonging to an account with access to the
+   private packages (the one that pushes them from CI is sufficient).
+   GHCR's own docs state it only supports classic PATs for pulling
+   container images — fine-grained tokens aren't a documented/guaranteed
+   option here, despite being generally preferred elsewhere.
+2. Vault-encrypt it into `ghcr_pull_token`:
+   ```sh
+   ansible-vault encrypt_string '<the token>' \
+     --name ghcr_pull_token --vault-password-file ansible/.vault_pass
+   ```
+   Append the resulting block to `group_vars/all.yml`.
+3. Confirm `ghcr_pull_username` in `group_vars/all.yml` matches the account
+   that owns the token.
+4. `make ansible-apply`.
 
 ### One-time aoe2-groups-proxy secrets bootstrap
 
