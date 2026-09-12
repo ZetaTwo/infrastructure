@@ -4,7 +4,8 @@ resource "hcloud_ssh_key" "zetatwo" {
 }
 
 resource "hcloud_server" "cluster_node" {
-  name         = "cluster-node"
+  count        = var.node_count
+  name         = "node${count.index + 1}"
   server_type  = var.server_type
   location     = var.server_location
   image        = var.server_image

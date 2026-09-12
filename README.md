@@ -85,17 +85,19 @@ version change is a no-op.
 ## Accessing the cluster
 
 There is no public route to the Kubernetes API (port 6443 is not opened in
-`terraform/firewall.tf`). Run `kubectl` on the box itself over SSH:
+`terraform/firewall.tf`). Run `kubectl` on the box itself over SSH, using its
+DNS name (`terraform/dns.tf`'s `cluster_node` record — see Domains below)
+rather than its raw IP:
 
 ```sh
-ssh root@<server> k3s kubectl get nodes
+ssh root@cluster-node.zetatwo.dev k3s kubectl get nodes
 ```
 
 or tunnel the API port and use a local `kubectl` with the node's kubeconfig
 (`/etc/rancher/k3s/k3s.yaml`, fetched over SSH):
 
 ```sh
-ssh -L 6443:localhost:6443 root@<server>
+ssh -L 6443:localhost:6443 root@cluster-node.zetatwo.dev
 ```
 
 ## Adding a new app
@@ -167,10 +169,13 @@ Cloudflare zones are declared as a label → zone ID map,
 any specific purpose — any DNS record or app can use any label. Currently:
 
 - `zetatwo_com` → `zeta-two.com` — hobby apps, e.g. `demo.zeta-two.com`.
-- `zetatwo_dev` → `zetatwo.dev` — has no DNS record on it yet, reserved for
-  future admin/management surfaces (see the TODOs above), but nothing stops
-  it being used for something else too — e.g. dev instances at
-  `dev.zetatwo.dev` would just be another record on the `zetatwo_dev` label.
+- `zetatwo_dev` → `zetatwo.dev` — hosts `cluster-node.zetatwo.dev`, the
+  node's own DNS name (used as the SSH/Ansible target instead of its raw
+  IP, see `terraform/dns.tf` and `terraform/inventory.tf`). Otherwise
+  reserved for future admin/management surfaces (see the TODOs above), but
+  nothing stops it being used for something else too — e.g. dev instances
+  at `dev.zetatwo.dev` would just be another record on the `zetatwo_dev`
+  label.
 
 The zone IDs are the single source of truth: Terraform looks up each zone's
 domain name via a `for_each`'d `cloudflare_zone` data source

@@ -15,6 +15,12 @@ variable "cloudflare_zones" {
   type        = map(string)
 }
 
+variable "node_count" {
+  description = "Number of cluster nodes to create. Nodes are independent single-node k3s servers for now — bumping this above 1 does not wire up k3s clustering/join between them."
+  type        = number
+  default     = 1
+}
+
 variable "server_type" {
   description = "Hetzner Cloud server type."
   type        = string

@@ -1,7 +1,9 @@
 all:
   hosts:
-    ${server_host}:
+%{ for host in server_hosts ~}
+    ${host}:
       ansible_user: root
+%{ endfor ~}
   vars:
     domains:
 %{ for label, domain in domains ~}
