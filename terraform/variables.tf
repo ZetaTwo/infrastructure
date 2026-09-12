@@ -5,25 +5,20 @@ variable "hcloud_token" {
 }
 
 variable "cloudflare_api_token" {
-  description = "Cloudflare API token scoped to the apps_zone_id and admin_zone_id zones. Provided via secrets.auto.tfvars, never committed."
+  description = "Cloudflare API token scoped to every zone referenced in cloudflare_zones. Provided via secrets.auto.tfvars, never committed."
   type        = string
   sensitive   = true
 }
 
-variable "apps_zone_id" {
-  description = "Cloudflare zone ID for the domain hosting hobby apps, e.g. demo.<domain>."
-  type        = string
-}
-
-variable "admin_zone_id" {
-  description = "Cloudflare zone ID for the domain hosting admin/infra surfaces, e.g. admin.<domain>."
-  type        = string
+variable "cloudflare_zones" {
+  description = "Cloudflare zone IDs, keyed by an arbitrary label used to reference each zone elsewhere (DNS records, Ansible inventory vars). Domain names are looked up from the Cloudflare API via data.cloudflare_zone, not stored here. e.g. { zetatwo_com = \"...\", zetatwo_dev = \"...\" }."
+  type        = map(string)
 }
 
 variable "server_type" {
   description = "Hetzner Cloud server type."
   type        = string
-  default     = "cpx31"
+  default     = "cpx22"
 }
 
 variable "server_location" {

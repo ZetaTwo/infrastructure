@@ -3,5 +3,7 @@ all:
     ${server_host}:
       ansible_user: root
   vars:
-    apps_domain: ${apps_domain}
-    admin_domain: ${admin_domain}
+    domains:
+%{ for label, domain in domains ~}
+      ${label}: ${domain}
+%{ endfor ~}

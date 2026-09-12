@@ -24,8 +24,8 @@ zones (or create one token per zone — either works, `terraform/providers.tf`
 only expects a single `cloudflare_api_token`).
 
 Note the two zone IDs while you're there (zone overview page, right-hand
-sidebar) — you'll need them for `apps_zone_id` (`zeta-two.com`) and
-`admin_zone_id` (`zetatwo.dev`).
+sidebar) — you'll need them for the `cloudflare_zones` map, e.g.
+`zetatwo_com` (`zeta-two.com`) and `zetatwo_dev` (`zetatwo.dev`).
 
 ### 3. Hetzner Object Storage bucket (Terraform state)
 
@@ -53,10 +53,14 @@ cp terraform/backend.hcl.example terraform/backend.hcl
 manager as the source of truth — restoring them on a fresh checkout is just
 copying from the password manager back into these two filenames.
 
-You'll also need to set `apps_zone_id` and `admin_zone_id` (from step 2)
-somewhere Terraform picks up — either add them to
-`terraform/secrets.auto.tfvars` alongside the tokens, or pass them with
-`terraform plan -var apps_zone_id=... -var admin_zone_id=...`.
+You'll also need to set `cloudflare_zones` (from step 2) somewhere Terraform
+picks up — either add it to `terraform/secrets.auto.tfvars` alongside the
+tokens, or pass it with
+`terraform plan -var 'cloudflare_zones={"zetatwo_com":"...","zetatwo_dev":"..."}'`.
+Labels are arbitrary — they're just how DNS records (`terraform/dns.tf`) and
+Ansible (`domains.<label>`) refer to a zone, not tied to any specific
+purpose. Add a new zone, or point a new purpose at an existing one, by
+adding or reusing a label in this map — no other Terraform changes needed.
 
 ## Day-to-day workflow
 
@@ -99,7 +103,8 @@ ssh -L 6443:localhost:6443 root@<server>
 Follow the pattern in `ansible/roles/apps-demo/`:
 
 1. Add a Cloudflare A record for the new hostname in `terraform/dns.tf`
-   (on `apps_zone_id` for a public app), then `make tf-apply`.
+   (on `var.cloudflare_zones["zetatwo_com"]` for a public app — or any other
+   label in `cloudflare_zones` if it belongs elsewhere), then `make tf-apply`.
 2. Copy `ansible/roles/apps-demo/` to `ansible/roles/apps-<name>/`, updating
    the image reference and hostname in `templates/<name>.yaml.j2`
    (Deployment + Service + Ingress).
@@ -157,16 +162,19 @@ interactive SSH login, not for Ansible's own access.
 
 ## Domains
 
-One Cloudflare zone currently in use, Terraform-managed, with explicit
-(never wildcard) A records:
+Cloudflare zones are declared as a label → zone ID map,
+`var.cloudflare_zones` (`terraform/secrets.auto.tfvars`), and aren't tied to
+any specific purpose — any DNS record or app can use any label. Currently:
 
-- `zeta-two.com` — hobby apps, e.g. `demo.zeta-two.com`.
+- `zetatwo_com` → `zeta-two.com` — hobby apps, e.g. `demo.zeta-two.com`.
+- `zetatwo_dev` → `zetatwo.dev` — has no DNS record on it yet, reserved for
+  future admin/management surfaces (see the TODOs above), but nothing stops
+  it being used for something else too — e.g. dev instances at
+  `dev.zetatwo.dev` would just be another record on the `zetatwo_dev` label.
 
-A second zone, `zetatwo.dev`, is set up (`admin_zone_id` /
-`data.cloudflare_zone.admin`) but has no record on it yet — reserved for
-future admin/management surfaces, see the TODOs above.
-
-The zone IDs (`terraform/secrets.auto.tfvars`) are the single source of truth:
-Terraform looks up each zone's domain name via a `cloudflare_zone` data source
-and writes it into the generated `ansible/inventory/hosts.yaml`, so Ansible
-never hardcodes the domain names itself.
+The zone IDs are the single source of truth: Terraform looks up each zone's
+domain name via a `for_each`'d `cloudflare_zone` data source
+(`terraform/data.tf`) and writes the whole label → domain map into the
+generated `ansible/inventory/hosts.yaml` as `domains`, so Ansible never
+hardcodes domain names itself, and a new zone only needs to be added in one
+place (tfvars) to become available everywhere.

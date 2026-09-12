@@ -41,10 +41,10 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - demo.{{ apps_domain }}
+        - demo.{{ domains.zetatwo_com }}
       secretName: demo-tls
   rules:
-    - host: demo.{{ apps_domain }}
+    - host: demo.{{ domains.zetatwo_com }}
       http:
         paths:
           - path: /

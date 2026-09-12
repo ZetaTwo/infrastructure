@@ -1,6 +1,9 @@
 ---
-# apps_domain and admin_domain are supplied by Terraform via
-# ansible/inventory/hosts.yaml (generated, gitignored) — see terraform/data.tf.
+# domains is a map of label -> real domain name, supplied by Terraform via
+# ansible/inventory/hosts.yaml (generated, gitignored) — see
+# terraform/variables.tf's cloudflare_zones and terraform/data.tf. Any label
+# added to cloudflare_zones in tfvars becomes available here automatically,
+# e.g. domains.zetatwo_com, domains.zetatwo_dev.
 
 # k3s_version / cert_manager_version are pinned deliberately — bumping them
 # here is what triggers an upgrade on the next `make ansible-apply` (see
@@ -13,7 +16,7 @@ cert_manager_version: v1.19.5
 # letsencrypt_email receives Let's Encrypt expiry/account notices for
 # certificates issued via the ClusterIssuer (ansible/roles/k3s). Not a
 # secret — override here if you want a different address.
-letsencrypt_email: "admin@{{ admin_domain }}"
+letsencrypt_email: "calle.svensson@zeta-two.com"
 
 # zetatwo_password_hash is a pre-hashed (crypt/shadow-style, e.g. yescrypt)
 # password for the zetatwo admin user — see README.md — via:

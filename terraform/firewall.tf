@@ -1,5 +1,5 @@
-resource "hcloud_firewall" "app" {
-  name = "app-firewall"
+resource "hcloud_firewall" "cluster_node" {
+  name = "cluster-node-firewall"
 
   rule {
     direction  = "in"

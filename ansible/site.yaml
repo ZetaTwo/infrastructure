@@ -1,5 +1,5 @@
 ---
-- name: Configure app server
+- name: Configure cluster node
   hosts: all
   become: false
 

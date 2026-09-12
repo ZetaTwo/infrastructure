@@ -1,7 +1,4 @@
-data "cloudflare_zone" "apps" {
-  zone_id = var.apps_zone_id
-}
-
-data "cloudflare_zone" "admin" {
-  zone_id = var.admin_zone_id
+data "cloudflare_zone" "this" {
+  for_each = var.cloudflare_zones
+  zone_id  = each.value
 }
