@@ -1,0 +1,10 @@
+---
+- name: Disable SSH password authentication
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/60-disable-password-auth.conf
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+    mode: '0644'
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Reload ssh
