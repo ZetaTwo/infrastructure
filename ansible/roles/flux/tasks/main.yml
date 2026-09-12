@@ -1,13 +1,66 @@
 ---
-- name: Check whether Flux {{ flux_version }} is already installed
+- name: Check whether Flux {{ flux_version }} core components are installed
   ansible.builtin.stat:
-    path: "/etc/rancher/k3s/.flux-{{ flux_version }}-installed"
+    path: "/etc/rancher/k3s/.flux-{{ flux_version }}-core-installed"
   register: flux_marker
 
-- name: Install Flux {{ flux_version }}
+# The release's install.yaml bundles 7 controllers (source, kustomize, helm,
+# notification, image-reflector, image-automation, source-watcher); we only
+# use the first 4 (no Flux-managed image automation or ArtifactGenerators —
+# see README), so install from the per-component manifests bundle instead
+# and skip the other 3 entirely, rather than installing then deleting them.
+- name: Download Flux {{ flux_version }} manifests bundle
+  ansible.builtin.get_url:
+    url: "https://github.com/fluxcd/flux2/releases/download/{{ flux_version }}/manifests.tar.gz"
+    dest: /etc/rancher/k3s/flux-manifests.tar.gz
+  when: not flux_marker.stat.exists
+
+- name: Create Flux manifests directory
+  ansible.builtin.file:
+    path: /etc/rancher/k3s/flux-manifests
+    state: directory
+    mode: '0755'
+  when: not flux_marker.stat.exists
+
+- name: Extract Flux manifests bundle
+  ansible.builtin.unarchive:
+    src: /etc/rancher/k3s/flux-manifests.tar.gz
+    dest: /etc/rancher/k3s/flux-manifests
+    remote_src: true
+  when: not flux_marker.stat.exists
+
+- name: Ensure flux-system namespace exists
+  ansible.builtin.command: k3s kubectl create namespace flux-system
+  register: flux_ns_create
+  changed_when: "'created' in flux_ns_create.stdout"
+  failed_when: flux_ns_create.rc != 0 and 'AlreadyExists' not in flux_ns_create.stderr
+  when: not flux_marker.stat.exists
+
+# The raw per-component files (unlike the pre-built install.yaml) don't
+# carry an explicit namespace — they're meant to be composed via `kustomize
+# build` with a namespace transformer. Passing -n here is required, or
+# every namespaced object (ServiceAccount/Service/Deployment/ResourceQuota/
+# NetworkPolicy) silently lands in the caller's default namespace instead.
+- name: Install Flux {{ flux_version }} core components
   ansible.builtin.command: >-
-    k3s kubectl apply -f
-    https://github.com/fluxcd/flux2/releases/download/{{ flux_version }}/install.yaml
+    k3s kubectl apply -n flux-system
+    -f /etc/rancher/k3s/flux-manifests/rbac.yaml
+    -f /etc/rancher/k3s/flux-manifests/policies.yaml
+    -f /etc/rancher/k3s/flux-manifests/source-controller.yaml
+    -f /etc/rancher/k3s/flux-manifests/kustomize-controller.yaml
+    -f /etc/rancher/k3s/flux-manifests/helm-controller.yaml
+    -f /etc/rancher/k3s/flux-manifests/notification-controller.yaml
+  when: not flux_marker.stat.exists
+
+- name: Prune unused Flux components (image automation, source-watcher)
+  ansible.builtin.command: >-
+    k3s kubectl delete -n flux-system -f /etc/rancher/k3s/flux-manifests/{{ item }} --ignore-not-found=true
+  loop:
+    - image-reflector-controller.yaml
+    - image-automation-controller.yaml
+    - source-watcher.yaml
+  register: flux_prune
+  changed_when: "'deleted' in flux_prune.stdout"
   when: not flux_marker.stat.exists
 
 - name: Wait for Flux controllers to be available
@@ -19,9 +72,9 @@
   when: not flux_marker.stat.exists
   changed_when: false
 
-- name: Mark Flux as installed
+- name: Mark Flux core components as installed
   ansible.builtin.file:
-    path: "/etc/rancher/k3s/.flux-{{ flux_version }}-installed"
+    path: "/etc/rancher/k3s/.flux-{{ flux_version }}-core-installed"
     state: touch
     mode: '0644'
   when: not flux_marker.stat.exists

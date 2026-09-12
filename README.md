@@ -86,6 +86,13 @@ way. Bumping any of these versions in `group_vars/all.yml` and re-running
 `make ansible-apply` performs a controlled upgrade; re-running with no
 version change is a no-op.
 
+Flux's release bundles 7 controllers; only 4 are installed
+(`source-controller`, `kustomize-controller`, `helm-controller`,
+`notification-controller`) — the other 3 (`image-reflector-controller`,
+`image-automation-controller`, `source-watcher`) are explicitly pruned,
+since nothing here uses Flux-managed image automation or
+`ArtifactGenerator`s (see "GitOps (Flux CD)" below for why).
+
 ## Accessing the cluster
 
 There is no public route to the Kubernetes API (port 6443 is not opened in
