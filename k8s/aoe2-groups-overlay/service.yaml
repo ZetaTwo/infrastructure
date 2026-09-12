@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aoe2-groups-proxy
+spec:
+  selector:
+    app: aoe2-groups-proxy
+  ports:
+    - port: 8080
+      targetPort: 8080

@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aoe2-groups-proxy
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - aoe2-groups.zeta-two.com
+      secretName: aoe2-groups-tls
+  rules:
+    - host: aoe2-groups.zeta-two.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aoe2-groups-proxy
+                port:
+                  number: 8080

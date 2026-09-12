@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aoe2-groups-proxy
+  labels:
+    app: aoe2-groups-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aoe2-groups-proxy
+  template:
+    metadata:
+      labels:
+        app: aoe2-groups-proxy
+    spec:
+      containers:
+        - name: aoe2-groups-proxy
+          # REPLACE_ME: set to a real pushed tag (ghcr.io/zetatwo/aoe2-groups-proxy:<git-sha>)
+          # before this manifest is merged to main — CI rewrites this line on every push.
+          image: ghcr.io/zetatwo/aoe2-groups-proxy:REPLACE_ME
+          ports:
+            - containerPort: 8080
+          env:
+            - name: RUST_LOG
+              value: info
+            - name: ALLOWED_ORIGINS
+              value: https://aoe2streaming.zeta-two.com
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /etc/aoe2-groups-proxy/service-account.json
+            - name: SHEET_IDS_PATH
+              value: /etc/aoe2-groups-proxy/sheet-ids.toml
+          volumeMounts:
+            - name: aoe2-secrets
+              mountPath: /etc/aoe2-groups-proxy
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+      volumes:
+        - name: aoe2-secrets
+          secret:
+            secretName: aoe2-groups-proxy-secrets

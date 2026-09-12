@@ -18,6 +18,23 @@ cert_manager_version: v1.19.5
 # secret — override here if you want a different address.
 letsencrypt_email: "calle.svensson@zeta-two.com"
 
+# flux_version is pinned deliberately, same convention as k3s_version above
+# — bumping it triggers an upgrade on the next `make ansible-apply` (see
+# ansible/roles/flux). Verify current releases at:
+#   https://github.com/fluxcd/flux2/releases
+flux_version: v2.9.5
+
+# Flux's git auth (the read-only GitHub Deploy Key) and the aoe2-groups-proxy
+# app secrets (SA key JSON, sheet-ids.toml) are NOT stored as vars here —
+# they're ansible-vault-encrypted files instead:
+#   ansible/roles/flux/files/flux-deploy-key            (encrypted)
+#   ansible/roles/flux/files/flux-deploy-key.pub         (plain — not a secret)
+#   ansible/roles/aoe2-groups-proxy/files/service-account.json  (encrypted)
+#   ansible/roles/aoe2-groups-proxy/files/sheet-ids.toml         (encrypted)
+# See README.md for the full bootstrap steps (ansible-vault encrypt <file>).
+# GitHub's SSH host keys are fetched live from https://api.github.com/meta
+# by ansible/roles/flux — nothing to store for those either.
+
 # zetatwo_password_hash is a pre-hashed (crypt/shadow-style, e.g. yescrypt)
 # password for the zetatwo admin user — see README.md — via:
 #   mkpasswd --method=yescrypt

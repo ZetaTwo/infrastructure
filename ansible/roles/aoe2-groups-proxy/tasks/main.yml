@@ -1,0 +1,32 @@
+---
+- name: Copy aoe2-groups-proxy service account key
+  ansible.builtin.copy:
+    src: service-account.json
+    dest: /etc/rancher/k3s/aoe2-groups-proxy-service-account.json
+    mode: '0600'
+
+- name: Copy aoe2-groups-proxy sheet-ids.toml
+  ansible.builtin.copy:
+    src: sheet-ids.toml
+    dest: /etc/rancher/k3s/aoe2-groups-proxy-sheet-ids.toml
+    mode: '0600'
+
+- name: Render aoe2-groups-proxy secret manifest
+  ansible.builtin.command: >-
+    k3s kubectl create secret generic aoe2-groups-proxy-secrets
+    --from-file=service-account.json=/etc/rancher/k3s/aoe2-groups-proxy-service-account.json
+    --from-file=sheet-ids.toml=/etc/rancher/k3s/aoe2-groups-proxy-sheet-ids.toml
+    -n default --dry-run=client -o yaml
+  register: aoe2_secret_manifest
+  changed_when: false
+
+- name: Write aoe2-groups-proxy secret manifest
+  ansible.builtin.copy:
+    content: "{{ aoe2_secret_manifest.stdout }}"
+    dest: /etc/rancher/k3s/aoe2-groups-proxy-secret.yaml
+    mode: '0600'
+  register: aoe2_secret_file
+
+- name: Apply aoe2-groups-proxy secret
+  ansible.builtin.command: k3s kubectl apply -f /etc/rancher/k3s/aoe2-groups-proxy-secret.yaml
+  when: aoe2_secret_file.changed

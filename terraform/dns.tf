@@ -18,9 +18,9 @@ resource "cloudflare_dns_record" "cluster_node" {
   proxied = false
 }
 
-resource "cloudflare_dns_record" "demo" {
+resource "cloudflare_dns_record" "aoe2_groups" {
   zone_id = var.cloudflare_zones["zetatwo_com"]
-  name    = "demo"
+  name    = "aoe2-groups"
   type    = "A"
   content = hcloud_server.cluster_node[0].ipv4_address # node1, until multi-node ingress/routing exists
   ttl     = 1

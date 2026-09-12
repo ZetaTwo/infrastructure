@@ -1,0 +1,100 @@
+---
+- name: Check whether Flux {{ flux_version }} is already installed
+  ansible.builtin.stat:
+    path: "/etc/rancher/k3s/.flux-{{ flux_version }}-installed"
+  register: flux_marker
+
+- name: Install Flux {{ flux_version }}
+  ansible.builtin.command: >-
+    k3s kubectl apply -f
+    https://github.com/fluxcd/flux2/releases/download/{{ flux_version }}/install.yaml
+  when: not flux_marker.stat.exists
+
+- name: Wait for Flux controllers to be available
+  ansible.builtin.command: >-
+    k3s kubectl wait --for=condition=Available
+    deployment/source-controller deployment/kustomize-controller
+    deployment/helm-controller deployment/notification-controller
+    -n flux-system --timeout=180s
+  when: not flux_marker.stat.exists
+  changed_when: false
+
+- name: Mark Flux as installed
+  ansible.builtin.file:
+    path: "/etc/rancher/k3s/.flux-{{ flux_version }}-installed"
+    state: touch
+    mode: '0644'
+  when: not flux_marker.stat.exists
+
+- name: Fetch GitHub SSH host keys
+  ansible.builtin.uri:
+    url: https://api.github.com/meta
+    return_content: true
+  register: github_meta
+
+- name: Copy Flux deploy key (private)
+  ansible.builtin.copy:
+    src: flux-infrastructure-deploy-key
+    dest: /etc/rancher/k3s/flux-identity
+    mode: '0600'
+
+- name: Copy Flux deploy key (public)
+  ansible.builtin.copy:
+    src: flux-infrastructure-deploy-key.pub
+    dest: /etc/rancher/k3s/flux-identity.pub
+    mode: '0644'
+
+- name: Write GitHub known_hosts file
+  ansible.builtin.copy:
+    content: "{{ github_meta.json.ssh_keys | map('regex_replace', '(.+)', 'github.com \\1') | join('\n') }}"
+    dest: /etc/rancher/k3s/flux-known-hosts
+    mode: '0644'
+
+- name: Render Flux git auth secret manifest
+  ansible.builtin.command: >-
+    k3s kubectl create secret generic flux-system
+    --from-file=identity=/etc/rancher/k3s/flux-identity
+    --from-file=identity.pub=/etc/rancher/k3s/flux-identity.pub
+    --from-file=known_hosts=/etc/rancher/k3s/flux-known-hosts
+    -n flux-system --dry-run=client -o yaml
+  register: flux_git_secret_manifest
+  changed_when: false
+
+- name: Write Flux git auth secret manifest
+  ansible.builtin.copy:
+    content: "{{ flux_git_secret_manifest.stdout }}"
+    dest: /etc/rancher/k3s/flux-git-secret.yaml
+    mode: '0600'
+  register: flux_git_secret
+
+- name: Apply Flux git auth secret
+  ansible.builtin.command: k3s kubectl apply -f /etc/rancher/k3s/flux-git-secret.yaml
+  when: flux_git_secret.changed
+
+- name: Template Flux GitRepository
+  ansible.builtin.template:
+    src: git-repository.yaml.j2
+    dest: /etc/rancher/k3s/flux-git-repository.yaml
+    mode: '0644'
+  register: flux_git_repository
+
+- name: Apply Flux GitRepository
+  ansible.builtin.command: k3s kubectl apply -f /etc/rancher/k3s/flux-git-repository.yaml
+  when: flux_git_repository.changed
+
+- name: Template Flux Kustomization
+  ansible.builtin.template:
+    src: flux-kustomization.yaml.j2
+    dest: /etc/rancher/k3s/flux-kustomization.yaml
+    mode: '0644'
+  register: flux_kustomization
+
+- name: Apply Flux Kustomization
+  ansible.builtin.command: k3s kubectl apply -f /etc/rancher/k3s/flux-kustomization.yaml
+  when: flux_kustomization.changed
+
+- name: Wait for the GitRepository to be ready
+  ansible.builtin.command: >-
+    k3s kubectl wait --for=condition=Ready gitrepository/infrastructure
+    -n flux-system --timeout=60s
+  changed_when: false
