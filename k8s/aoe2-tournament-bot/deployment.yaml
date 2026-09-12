@@ -6,9 +6,8 @@ metadata:
     app: aoe2-tournament-bot
 spec:
   # Discord gateway is a single persistent WebSocket — exactly one replica,
-  # never autoscaled (matches the old Cloud Run Worker Pool's
-  # manual_instance_count = 1). No Service/Ingress: this isn't a web app,
-  # nothing listens for inbound traffic.
+  # never autoscaled. No Service/Ingress: this isn't a web app, nothing
+  # listens for inbound traffic.
   replicas: 1
   selector:
     matchLabels:
