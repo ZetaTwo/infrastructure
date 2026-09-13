@@ -27,6 +27,16 @@ spec:
     # restart.
     persistence:
       enabled: true
+    # The chart's default init-chown-data container runs as root with every
+    # capability dropped except CHOWN, so it lacks CAP_DAC_OVERRIDE and
+    # can't even traverse into Grafana's own 0700 png/csv/pdf export
+    # directories once they exist, failing recursive chown on every pod
+    # recreation after the first. The pod's own fsGroup: 472 (chart
+    # default) already makes Kubernetes group-own the volume correctly at
+    # mount time, making this init container redundant — disabled instead
+    # of patching its capabilities.
+    initChownData:
+      enabled: false
     datasources:
       datasources.yaml:
         apiVersion: 1
