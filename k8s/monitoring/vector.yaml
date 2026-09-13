@@ -1,6 +1,9 @@
 # Runs as a DaemonSet (role: Agent), tailing every pod's logs on the node,
 # scraping node_exporter, and reporting its own internal metrics — per
-# MONITORING.md's architecture.
+# MONITORING.md's architecture. Also posts ERROR-level log lines straight
+# to Discord (own throttle, bypassing Alertmanager) since that's the only
+# place the original log text is ever available — see the transforms
+# below. Metrics alerting stays on vmalert → Alertmanager (vmalert.yaml).
 #
 # customConfig fully replaces the chart's default config (the chart's own
 # docs: "if used, **all** options need to be specified") — this is the
@@ -28,6 +31,17 @@ spec:
         name: vector
   values:
     role: Agent
+    # Discord posting below needs the same webhook URL Alertmanager uses
+    # (alertmanager-discord Secret, applied by ansible/roles/monitoring) —
+    # Vector substitutes ${DISCORD_WEBHOOK_URL} into its config itself at
+    # startup, from its own process environment, so the raw URL is never
+    # written into this file.
+    env:
+      - name: DISCORD_WEBHOOK_URL
+        valueFrom:
+          secretKeyRef:
+            name: alertmanager-discord
+            key: webhook_url
     customConfig:
       data_dir: /vector-data-dir
       api:
@@ -59,6 +73,38 @@ spec:
               .message = parsed_json
               .level = parsed_json.level
             }
+        # Log-based alerting (as opposed to the metrics alerts in
+        # vmalert.yaml, which stay on Alertmanager) goes straight from
+        # here to Discord — Alertmanager annotations can only template
+        # against a query result's labels, never the original log text,
+        # so getting the actual error message into the notification means
+        # posting it directly from the one place that ever sees it.
+        filter_errors:
+          type: filter
+          inputs: [parse_app_json]
+          condition: '.level == "ERROR"'
+        # Caps it at one Discord post per app per 30s — without this, a
+        # burst of repeated errors from the same app would post one
+        # message per line.
+        throttle_errors:
+          type: throttle
+          inputs: [filter_errors]
+          threshold: 1
+          window_secs: 30
+          key_field: '{{ "{{ kubernetes.pod_labels.app }}" }}'
+        # Reshapes the event into the exact JSON body Discord's webhook
+        # API expects, as a pre-encoded string in .message — the http
+        # sink below sends that string as-is (codec: text), rather than
+        # wrapping it as one more field inside its own JSON envelope.
+        format_discord:
+          type: remap
+          inputs: [throttle_errors]
+          source: |
+            app = .kubernetes.pod_labels.app
+            if app == null { app = "unknown" }
+            text = .message.message
+            if text == null { text = encode_json(.message) }
+            .message = encode_json({"content": "🚨 **" + app + "**: " + text})
       sinks:
         loki:
           type: loki
@@ -78,3 +124,17 @@ spec:
           type: prometheus_exporter
           inputs: [node_exporter, internal_metrics]
           address: 0.0.0.0:9090
+        discord_errors:
+          type: http
+          inputs: [format_discord]
+          uri: "${DISCORD_WEBHOOK_URL}"
+          method: post
+          encoding:
+            codec: text
+          framing:
+            method: bytes
+          batch:
+            max_events: 1
+          request:
+            headers:
+              Content-Type: application/json

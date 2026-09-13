@@ -1,9 +1,10 @@
 # Single-binary Loki (no S3/object storage, no separate read/write/backend
 # components) — matches the single-node, resource-conscious scope of
 # MONITORING.md. Storage is a local PVC on k3s's default "local-path"
-# StorageClass. Vector pushes logs here (loki.yaml sink); Grafana queries
-# it; its own ruler evaluates log-based alert rules and fires them to
-# Alertmanager, same as vmalert does for metrics.
+# StorageClass. Vector pushes logs here (vector.yaml sink) and Grafana
+# queries it. Log-based alerting (ERROR-level lines) is handled directly
+# by Vector posting to Discord (vector.yaml), not by Loki's ruler — see
+# that file's comment for why — so the ruler is unused here.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -61,29 +62,6 @@ spec:
       storage:
         type: filesystem
       useTestSchema: true
-      # Points the ruler at Alertmanager so log-based alert rules fire the
-      # same way vmalert's metrics rules do. The ruler appends the tenant
-      # ID itself (single-tenant here, so "fake") onto this directory —
-      # it must stay /rules, NOT /rules/fake, or the ruler ends up looking
-      # in /rules/fake/fake. The sidecar below writes into /rules/fake
-      # directly, which is what the ruler then finds at /rules + /fake.
-      rulerConfig:
-        alertmanager_url: http://alertmanager.monitoring.svc.cluster.local:9093
-        storage:
-          type: local
-          local:
-            directory: /rules
-    sidecar:
-      rules:
-        # The chart's default sidecar (enabled by default) picks up rule
-        # files from ConfigMaps labeled "loki_rule" and writes them into
-        # this folder. sidecar.rules.folderAnnotation (a per-ConfigMap
-        # override) exists in the values schema but is only wired up in
-        # the chart's backend StatefulSet template (SimpleScalable/
-        # Distributed modes) — the single-binary template we use here
-        # ignores it entirely, so the single global folder is set directly
-        # instead, matching rulerConfig.storage.local.directory above.
-        folder: /rules/fake
     gateway:
       enabled: false
     test:
@@ -97,30 +75,3 @@ spec:
         enabled: false
       serviceMonitor:
         enabled: false
-    # Picked up by the sidecar above and dropped into /rules/fake. `sum by
-    # (app)` gives each erroring app its own alert identity, so two apps
-    # erroring independently fire (and resolve) as two separate alerts.
-    #
-    # extraObjects is rendered through Helm's `tpl` (like customConfig in
-    # vector.yaml), so the ruler's own {{ $labels.app }} annotation syntax
-    # has to be escaped as {{ "{{ $labels.app }}" }} below so Helm doesn't
-    # try to evaluate it itself.
-    extraObjects:
-      - apiVersion: v1
-        kind: ConfigMap
-        metadata:
-          name: loki-rules-app-errors
-          labels:
-            loki_rule: "true"
-        data:
-          app-errors.yaml: |
-            groups:
-              - name: app-errors
-                rules:
-                  - alert: LogError
-                    expr: sum by (app) (count_over_time({level="ERROR"}[1m])) > 0
-                    for: 0m
-                    labels:
-                      severity: warning
-                    annotations:
-                      summary: '{{ "{{ $labels.app }}" }} logged an ERROR'
