@@ -116,8 +116,8 @@ spec:
             app = .kubernetes.pod_labels.app
             if app == null { app = "unknown" }
             text = .message.message
-            if text == null { text = encode_json(.message) }
-            .message = encode_json({"content": "🚨 **" + app + "**: " + text})
+            if text == null { text = encode_json!(.message) }
+            .message = encode_json!({"content": "🚨 **" + to_string!(app) + "**: " + to_string!(text)})
       sinks:
         loki:
           type: loki
