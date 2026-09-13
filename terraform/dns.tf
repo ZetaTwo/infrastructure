@@ -26,3 +26,12 @@ resource "cloudflare_dns_record" "aoe2_groups" {
   ttl     = 1
   proxied = false # must stay un-proxied so cert-manager's Let's Encrypt HTTP-01 challenge reaches Traefik directly
 }
+
+resource "cloudflare_dns_record" "grafana" {
+  zone_id = var.cloudflare_zones["zetatwo_dev"] # admin/management surface, not a hobby app — see README's Domains section
+  name    = "grafana"
+  type    = "A"
+  content = hcloud_server.cluster_node[0].ipv4_address # node1, until multi-node ingress/routing exists
+  ttl     = 1
+  proxied = false # must stay un-proxied so cert-manager's Let's Encrypt HTTP-01 challenge reaches Traefik directly
+}
