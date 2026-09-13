@@ -116,8 +116,21 @@ spec:
             app = .kubernetes.pod_labels.app
             if app == null { app = "unknown" }
             text = .message.message
-            if text == null { text = encode_json!(.message) }
-            .message = encode_json!({"content": "🚨 **" + to_string!(app) + "**: " + to_string!(text)})
+            if text == null { text = encode_json(.message) }
+            ts = to_string!(.timestamp)
+            .message = encode_json({
+              "embeds": [
+                {
+                  "title": "An application logged an error",
+                  "color": 15158332,
+                  "fields": [
+                    {"name": "Timestamp", "value": ts, "inline": true},
+                    {"name": "App", "value": to_string!(app), "inline": true},
+                    {"name": "Message", "value": to_string!(text)}
+                  ]
+                }
+              ]
+            })
       sinks:
         loki:
           type: loki
