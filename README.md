@@ -345,6 +345,14 @@ Podman+Caddy to k3s, rather than carried over 1:1:
   today just creates independent single-node servers. Needs k3s
   server/agent join logic (a shared cluster token, one initial server node)
   before it's actually usable.
+- **Vector's `victoriametrics` sink healthcheck.** Vector logs
+  `Healthcheck failed: Unexpected status: 204 No Content` for the
+  `prometheus_remote_write` sink (`k8s/monitoring/vector.yaml`) on every
+  startup — cosmetic, not a real failure: VictoriaMetrics correctly
+  returns `204` on a successful remote-write, but Vector's healthcheck
+  probe doesn't accept that status as healthy. Metrics still flow fine;
+  worth a fix (or a Vector config option to relax/skip this healthcheck)
+  if the log noise becomes annoying.
 
 ## Admin login (zetatwo)
 
