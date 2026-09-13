@@ -62,16 +62,17 @@ spec:
         type: filesystem
       useTestSchema: true
       # Points the ruler at Alertmanager so log-based alert rules fire the
-      # same way vmalert's metrics rules do. Single-tenant (auth_enabled:
-      # false) Loki reads rules from <directory>/fake/*, so this must be
-      # the "fake" subdirectory the sidecar below writes into, not just
-      # /rules.
+      # same way vmalert's metrics rules do. The ruler appends the tenant
+      # ID itself (single-tenant here, so "fake") onto this directory —
+      # it must stay /rules, NOT /rules/fake, or the ruler ends up looking
+      # in /rules/fake/fake. The sidecar below writes into /rules/fake
+      # directly, which is what the ruler then finds at /rules + /fake.
       rulerConfig:
         alertmanager_url: http://alertmanager.monitoring.svc.cluster.local:9093
         storage:
           type: local
           local:
-            directory: /rules/fake
+            directory: /rules
     sidecar:
       rules:
         # The chart's default sidecar (enabled by default) picks up rule
