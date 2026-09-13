@@ -40,3 +40,25 @@ spec:
             type: loki
             url: http://loki.monitoring.svc.cluster.local:3100
             access: proxy
+    # Starter dashboard pulled straight from grafana.com by ID at startup
+    # (dashboardProviders registers the "default" file-based provider the
+    # download lands in) — "Node Exporter Full", built against the
+    # node_exporter metrics Vector now scrapes (see node-exporter.yaml).
+    dashboardProviders:
+      dashboardproviders.yaml:
+        apiVersion: 1
+        providers:
+          - name: default
+            orgId: 1
+            folder: ""
+            type: file
+            disableDeletion: false
+            editable: true
+            options:
+              path: /var/lib/grafana/dashboards/default
+    dashboards:
+      default:
+        node-exporter-full:
+          gnetId: 1860
+          revision: 37
+          datasource: VictoriaMetrics

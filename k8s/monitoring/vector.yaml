@@ -1,5 +1,6 @@
-# Runs as a DaemonSet (role: Agent), tailing every pod's logs on the node
-# and scraping host/self metrics, per MONITORING.md's architecture.
+# Runs as a DaemonSet (role: Agent), tailing every pod's logs on the node,
+# scraping node_exporter, and reporting its own internal metrics — per
+# MONITORING.md's architecture.
 #
 # customConfig fully replaces the chart's default config (the chart's own
 # docs: "if used, **all** options need to be specified") — this is the
@@ -35,15 +36,15 @@ spec:
       sources:
         kubernetes_logs:
           type: kubernetes_logs
-        host_metrics:
-          type: host_metrics
-          filesystem:
-            devices:
-              excludes: [binfmt_misc]
-            filesystems:
-              excludes: [binfmt_misc]
-            mountpoints:
-              excludes: ["*/proc/sys/fs/binfmt_misc"]
+        # CPU/memory/disk metrics come from node_exporter (node-exporter.yaml)
+        # rather than Vector's own host_metrics source, so the standard
+        # node_exporter-based Grafana dashboards work unmodified (see
+        # grafana.yaml) — collecting the same data twice under two
+        # different metric names would just waste resources.
+        node_exporter:
+          type: prometheus_scrape
+          endpoints:
+            - http://node-exporter.monitoring.svc.cluster.local:9100/metrics
         internal_metrics:
           type: internal_metrics
       transforms:
@@ -71,9 +72,9 @@ spec:
             namespace: '{{ "{{ kubernetes.pod_namespace }}" }}'
         victoriametrics:
           type: prometheus_remote_write
-          inputs: [host_metrics, internal_metrics]
+          inputs: [node_exporter, internal_metrics]
           endpoint: http://vmsingle.monitoring.svc.cluster.local:8428/api/v1/write
         prom_exporter:
           type: prometheus_exporter
-          inputs: [host_metrics, internal_metrics]
+          inputs: [node_exporter, internal_metrics]
           address: 0.0.0.0:9090
