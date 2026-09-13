@@ -6,7 +6,7 @@
     kind: Namespace
     state: present
 
-- name: Apply Alertmanager Discord webhook secret
+- name: Apply Alertmanager/Vector Discord webhook secret
   kubernetes.core.k8s:
     state: present
     definition:
@@ -17,7 +17,15 @@
         namespace: monitoring
       type: Opaque
       stringData:
+        # Plain text, consumed by Alertmanager via discord_configs.webhook_url_file
+        # (alertmanager.yaml).
         webhook_url: "{{ alertmanager_discord_webhook_url }}"
+        # Same value, JSON-wrapped, consumed by Vector's file secrets
+        # backend (vector.yaml) — that backend requires its mounted file
+        # to be a JSON object of secret name -> value, unlike Alertmanager's
+        # plain-text-file convention, hence the second key instead of
+        # reusing webhook_url directly.
+        vector-secrets.json: "{{ {'webhook_url': alertmanager_discord_webhook_url} | to_json }}"
   no_log: true
 
 - name: Apply Grafana admin credentials secret

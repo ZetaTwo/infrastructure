@@ -32,21 +32,34 @@ spec:
   values:
     role: Agent
     # Discord posting below needs the same webhook URL Alertmanager uses
-    # (alertmanager-discord Secret, applied by ansible/roles/monitoring) —
-    # Vector substitutes ${DISCORD_WEBHOOK_URL} into its config itself at
-    # startup, from its own process environment, so the raw URL is never
-    # written into this file.
-    env:
-      - name: DISCORD_WEBHOOK_URL
-        valueFrom:
-          secretKeyRef:
-            name: alertmanager-discord
-            key: webhook_url
+    # (alertmanager-discord Secret, applied by ansible/roles/monitoring),
+    # kept out of this file via Vector's file secrets backend (the
+    # `secret:` block in customConfig) rather than ${VAR} interpolation —
+    # Vector 0.57+ disables interpolation by default specifically to stop
+    # secrets ending up readable in the process environment
+    # (/proc/<pid>/environ), and the file backend is its recommended
+    # replacement. The Secret's `vector-secrets.json` key (a JSON object,
+    # which this backend requires — unlike Alertmanager's plain-text-file
+    # convention) is mounted below and read directly off disk.
+    extraVolumes:
+      - name: discord-webhook-secret
+        secret:
+          secretName: alertmanager-discord
+    extraVolumeMounts:
+      - name: discord-webhook-secret
+        mountPath: /etc/vector-secrets
+        readOnly: true
     customConfig:
       data_dir: /vector-data-dir
       api:
         enabled: true
         address: 0.0.0.0:8686
+      # File secrets backend for the Discord webhook URL — resolved once
+      # at config load, referenced below as SECRET[discord.webhook_url].
+      secret:
+        discord:
+          type: file
+          path: /etc/vector-secrets/vector-secrets.json
       sources:
         kubernetes_logs:
           type: kubernetes_logs
@@ -127,7 +140,7 @@ spec:
         discord_errors:
           type: http
           inputs: [format_discord]
-          uri: "${DISCORD_WEBHOOK_URL}"
+          uri: "SECRET[discord.webhook_url]"
           method: post
           encoding:
             codec: text
