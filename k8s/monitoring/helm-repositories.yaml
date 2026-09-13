@@ -1,0 +1,34 @@
+# Chart sources for the monitoring stack's HelmReleases below. Flux's
+# source-controller polls each of these and makes the charts available to
+# helm-controller; nothing here talks to a cluster resource directly.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: vector
+spec:
+  interval: 1h
+  url: https://helm.vector.dev
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: victoria-metrics
+spec:
+  interval: 1h
+  url: https://victoriametrics.github.io/helm-charts
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: grafana
+spec:
+  interval: 1h
+  url: https://grafana.github.io/helm-charts
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: prometheus-community
+spec:
+  interval: 1h
+  url: https://prometheus-community.github.io/helm-charts

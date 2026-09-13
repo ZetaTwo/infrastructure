@@ -1,0 +1,37 @@
+# Hand-written (not the grafana chart's own ingress templating) to match
+# k8s/aoe2-groups-overlay/ingress.yaml's style. The basicAuth Secret
+# (htpasswd-format) is applied by ansible/roles/monitoring, not
+# Flux — this is the repo's first auth-gated Ingress, added because
+# Grafana would otherwise be a fully public admin surface.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: grafana-auth
+spec:
+  basicAuth:
+    secret: grafana-basic-auth
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: monitoring-grafana-auth@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - grafana.zetatwo.dev
+      secretName: grafana-tls
+  rules:
+    - host: grafana.zetatwo.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 80

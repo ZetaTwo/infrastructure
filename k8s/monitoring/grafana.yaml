@@ -1,0 +1,42 @@
+# Admin credentials come from a Secret applied by the new
+# ansible/roles/monitoring role (not Flux-managed) — see
+# admin.existingSecret below. Public access is gated by the Traefik
+# basic-auth Middleware in grafana-ingress.yaml, in front of Grafana's own
+# login.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: grafana
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: grafana
+      version: "10.5.15"
+      sourceRef:
+        kind: HelmRepository
+        name: grafana
+  values:
+    fullnameOverride: "grafana"
+    admin:
+      existingSecret: grafana-admin-credentials
+      userKey: admin-user
+      passwordKey: admin-password
+    # Persistence defaults to disabled in this chart (unlike the other
+    # components here) — enabled so dashboards/settings survive a pod
+    # restart.
+    persistence:
+      enabled: true
+    datasources:
+      datasources.yaml:
+        apiVersion: 1
+        datasources:
+          - name: VictoriaMetrics
+            type: prometheus
+            url: http://vmsingle.monitoring.svc.cluster.local:8428
+            access: proxy
+            isDefault: true
+          - name: Loki
+            type: loki
+            url: http://loki.monitoring.svc.cluster.local:3100
+            access: proxy

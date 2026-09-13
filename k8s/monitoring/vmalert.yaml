@@ -1,0 +1,31 @@
+# vmalert evaluates metrics-based alerting rules against VictoriaMetrics
+# and fires them to Alertmanager. MONITORING.md doesn't name a rule
+# evaluator explicitly ("VictoriaMetrics constantly evaluates rules") but
+# VictoriaMetrics itself only stores metrics — vmalert is the component
+# that actually runs the rule queries. Loki's own ruler (see loki.yaml)
+# covers log-based rules the same way.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: vmalert
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: victoria-metrics-alert
+      version: "0.48.0"
+      sourceRef:
+        kind: HelmRepository
+        name: victoria-metrics
+  values:
+    server:
+      fullnameOverride: "vmalert"
+      datasource:
+        url: http://vmsingle.monitoring.svc.cluster.local:8428
+      remoteWrite:
+        url: http://vmsingle.monitoring.svc.cluster.local:8428/api/v1/write
+      notifier:
+        url: http://alertmanager.monitoring.svc.cluster.local:9093
+      # No rule groups defined yet (chart default: config.alerts.groups: [])
+      # — add them under server.config.alerts.groups as alerting needs come
+      # up; each fired alert routes through Alertmanager to Discord.

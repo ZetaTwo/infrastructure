@@ -1,0 +1,79 @@
+# Runs as a DaemonSet (role: Agent), tailing every pod's logs on the node
+# and scraping host/self metrics, per MONITORING.md's architecture.
+#
+# customConfig fully replaces the chart's default config (the chart's own
+# docs: "if used, **all** options need to be specified") — this is the
+# stock "Agent" config the chart would otherwise generate (see the vector
+# chart's templates/configmap.yaml), extended with the VRL transform from
+# MONITORING.md's vector.yaml snippet and two sinks (Loki, VictoriaMetrics)
+# in place of the default's stdout-only sink.
+#
+# Since the whole customConfig is rendered through Helm's `tpl`, Vector's
+# own `{{ field }}` event-templating syntax (used in the Loki sink's
+# `labels` below) has to be escaped as {{ "{{ field }}" }} so Helm doesn't
+# try to evaluate it itself.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: vector
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: vector
+      version: "0.58.0"
+      sourceRef:
+        kind: HelmRepository
+        name: vector
+  values:
+    role: Agent
+    customConfig:
+      data_dir: /vector-data-dir
+      api:
+        enabled: true
+        address: 0.0.0.0:8686
+      sources:
+        kubernetes_logs:
+          type: kubernetes_logs
+        host_metrics:
+          type: host_metrics
+          filesystem:
+            devices:
+              excludes: [binfmt_misc]
+            filesystems:
+              excludes: [binfmt_misc]
+            mountpoints:
+              excludes: ["*/proc/sys/fs/binfmt_misc"]
+        internal_metrics:
+          type: internal_metrics
+      transforms:
+        # Parses the Rust `tracing` JSON emitted to stdout and promotes
+        # `level` to a top-level field so it can become a Loki label.
+        parse_app_json:
+          type: remap
+          inputs: [kubernetes_logs]
+          source: |
+            parsed_json, err = parse_json(.message)
+            if err == null {
+              .message = parsed_json
+              .level = parsed_json.level
+            }
+      sinks:
+        loki:
+          type: loki
+          inputs: [parse_app_json]
+          endpoint: http://loki.monitoring.svc.cluster.local:3100
+          encoding:
+            codec: json
+          labels:
+            app: '{{ "{{ kubernetes.pod_labels.app }}" }}'
+            level: '{{ "{{ level }}" }}'
+            namespace: '{{ "{{ kubernetes.pod_namespace }}" }}'
+        victoriametrics:
+          type: prometheus_remote_write
+          inputs: [host_metrics, internal_metrics]
+          endpoint: http://vmsingle.monitoring.svc.cluster.local:8428/api/v1/write
+        prom_exporter:
+          type: prometheus_exporter
+          inputs: [host_metrics, internal_metrics]
+          address: 0.0.0.0:9090

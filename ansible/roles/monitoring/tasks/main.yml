@@ -1,0 +1,50 @@
+---
+- name: Ensure monitoring namespace exists
+  kubernetes.core.k8s:
+    name: monitoring
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Apply Alertmanager Discord webhook secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: alertmanager-discord
+        namespace: monitoring
+      type: Opaque
+      stringData:
+        webhook_url: "{{ alertmanager_discord_webhook_url }}"
+  no_log: true
+
+- name: Apply Grafana admin credentials secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: grafana-admin-credentials
+        namespace: monitoring
+      type: Opaque
+      stringData:
+        admin-user: admin
+        admin-password: "{{ grafana_admin_password }}"
+  no_log: true
+
+- name: Apply Grafana basic-auth secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: grafana-basic-auth
+        namespace: monitoring
+      type: Opaque
+      stringData:
+        users: "{{ grafana_basic_auth_htpasswd }}"
+  no_log: true

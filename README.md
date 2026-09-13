@@ -290,6 +290,38 @@ need a bootstrap step: `ansible/roles/flux` fetches them live from
    ```
 3. `make ansible-apply`.
 
+### One-time monitoring secrets bootstrap
+
+The observability stack itself (Vector, VictoriaMetrics, Loki, Grafana,
+Alertmanager — see `MONITORING.md` and `k8s/monitoring/`) is entirely
+Flux-managed, but its three secrets are not, following the same pattern as
+`aoe2-groups-proxy`/`aoe2-tournament-bot` above (`ansible/roles/
+monitoring`):
+
+1. Create a Discord webhook (Server Settings → Integrations → Webhooks) in
+   whichever channel should receive alerts, and vault-encrypt its URL:
+   ```sh
+   ansible-vault encrypt_string 'https://discord.com/api/webhooks/...' \
+     --name alertmanager_discord_webhook_url \
+     --vault-password-file ansible/.vault_pass
+   ```
+2. Generate a Grafana admin password and vault-encrypt it:
+   ```sh
+   ansible-vault encrypt_string '<a generated password>' \
+     --name grafana_admin_password --vault-password-file ansible/.vault_pass
+   ```
+3. Generate a htpasswd credential (a *different* password from step 2 —
+   this one gates the Traefik `Middleware` in front of Grafana, not
+   Grafana's own login) and vault-encrypt the resulting line:
+   ```sh
+   htpasswd -nbB grafana '<a different generated password>' \
+     | ansible-vault encrypt_string --stdin-name grafana_basic_auth_htpasswd \
+       --vault-password-file ansible/.vault_pass
+   ```
+4. Append all three resulting blocks to `ansible/group_vars/all.yml`
+   (alongside `ghcr_pull_token`/`zetatwo_password_hash`), then
+   `make ansible-apply`.
+
 ## TODOs / deferred
 
 A few things were deliberately dropped or deferred in the move from
@@ -300,11 +332,6 @@ Podman+Caddy to k3s, rather than carried over 1:1:
   host-loopback-only service without extra plumbing. Revisit this —
   options include a proper Kubernetes dashboard, or keeping something
   SSH-tunneled rather than exposed as a public admin surface.
-- **Logging/alerting.** The Vector → ntfy.sh pipeline (journald →
-  JSON-`ERROR` filter → rate-limited push) was removed rather than adapted:
-  k3s pods log to `/var/log/pods/...` via containerd, not journald, so the
-  old pipeline wouldn't see app-level errors without rework. Revisit with a
-  k8s-native log shipper (e.g. a DaemonSet) or a hosted alternative.
 - **App deployment / image updates**: done via Flux CD — see "GitOps (Flux
   CD)" above. Remaining gaps: the CI-commits-back tag bump has no PR gate
   (a rare race on the commit is possible, mitigated with a rebase-retry);

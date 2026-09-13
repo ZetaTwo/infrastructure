@@ -24,6 +24,17 @@ letsencrypt_email: "calle.svensson@zeta-two.com"
 #   https://github.com/fluxcd/flux2/releases
 flux_version: v2.9.5
 
+# The monitoring stack's secrets (Discord webhook URL, Grafana admin
+# password, Grafana basic-auth htpasswd line — see
+# ansible/roles/monitoring and README.md's "One-time monitoring
+# secrets bootstrap") are single values, so — like ghcr_pull_token and
+# zetatwo_password_hash below — they're vaulted group_vars scalars rather
+# than files/-vaulted files. Not present until that bootstrap has been run
+# once:
+#   alertmanager_discord_webhook_url: !vault | ...
+#   grafana_admin_password: !vault | ...
+#   grafana_basic_auth_htpasswd: !vault | ...
+
 # Flux's git auth (the read-only GitHub Deploy Key) and the per-app secrets
 # (SA key JSONs, sheet-ids.toml, config.toml) are NOT stored as vars here —
 # they're ansible-vault-encrypted files instead:

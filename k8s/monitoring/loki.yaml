@@ -1,0 +1,81 @@
+# Single-binary Loki (no S3/object storage, no separate read/write/backend
+# components) — matches the single-node, resource-conscious scope of
+# MONITORING.md. Storage is a local PVC on k3s's default "local-path"
+# StorageClass. Vector pushes logs here (loki.yaml sink); Grafana queries
+# it; its own ruler evaluates log-based alert rules and fires them to
+# Alertmanager, same as vmalert does for metrics.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: loki
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: loki
+      version: "7.3.0"
+      sourceRef:
+        kind: HelmRepository
+        name: grafana
+  values:
+    # Fixes the Service name to "loki" (reachable at
+    # loki.monitoring.svc.cluster.local:3100) instead of a chart-generated
+    # name.
+    fullnameOverride: "loki"
+    deploymentMode: SingleBinary
+    singleBinary:
+      replicas: 1
+    # No other deployment mode's components are used.
+    backend:
+      replicas: 0
+    read:
+      replicas: 0
+    write:
+      replicas: 0
+    ingester:
+      replicas: 0
+    querier:
+      replicas: 0
+    queryFrontend:
+      replicas: 0
+    queryScheduler:
+      replicas: 0
+    distributor:
+      replicas: 0
+    compactor:
+      replicas: 0
+    indexGateway:
+      replicas: 0
+    loki:
+      auth_enabled: false
+      commonConfig:
+        replication_factor: 1
+      storage:
+        type: filesystem
+      useTestSchema: true
+      # Points the ruler at Alertmanager so log-based alert rules (added
+      # later, none defined yet) fire the same way vmalert's metrics rules
+      # do. The chart's default sidecar (sidecar.rules, enabled by
+      # default) picks up rule files from ConfigMaps labeled "loki_rule"
+      # and drops them into sidecar.rules.folder (default /rules), which
+      # must match rulerConfig.storage.local.directory below — see the
+      # chart's values.yaml for how to add one.
+      rulerConfig:
+        alertmanager_url: http://alertmanager.monitoring.svc.cluster.local:9093
+        storage:
+          type: local
+          local:
+            directory: /rules
+    gateway:
+      enabled: false
+    test:
+      enabled: false
+    lokiCanary:
+      enabled: false
+    monitoring:
+      selfMonitoring:
+        enabled: false
+      lokiCanary:
+        enabled: false
+      serviceMonitor:
+        enabled: false
