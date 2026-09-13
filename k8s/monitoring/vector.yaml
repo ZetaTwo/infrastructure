@@ -117,7 +117,7 @@ spec:
             if app == null { app = "unknown" }
             text = .message.message
             if text == null { text = encode_json(.message) }
-            ts = to_string!(.timestamp)
+            ts = format_timestamp!(.timestamp, "%Y-%m-%dT%H:%M:%SZ")
             .message = encode_json({
               "embeds": [
                 {
