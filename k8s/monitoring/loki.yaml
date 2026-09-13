@@ -46,6 +46,14 @@ spec:
       replicas: 0
     indexGateway:
       replicas: 0
+    # The chart enables two memcached-backed caches by default
+    # (chunksCache wants 8Gi, resultsCache 1Gi) — both oversized for a
+    # single small-VPS node and unnecessary for this scale; disabling them
+    # is what let the singleBinary pod actually get scheduled.
+    chunksCache:
+      enabled: false
+    resultsCache:
+      enabled: false
     loki:
       auth_enabled: false
       commonConfig:
