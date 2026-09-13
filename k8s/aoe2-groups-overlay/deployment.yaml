@@ -20,7 +20,7 @@ spec:
         - name: aoe2-groups-proxy
           # REPLACE_ME: set to a real pushed tag (ghcr.io/zetatwo/aoe2-groups-proxy:<git-sha>)
           # before this manifest is merged to main — CI rewrites this line on every push.
-          image: ghcr.io/zetatwo/aoe2-groups-proxy:8bc67ed4e84518c9db5c0ba2d420bf4329db8b96
+          image: ghcr.io/zetatwo/aoe2-groups-proxy:db56d1e19304b54f90a6726a0c6b87148206b716
           ports:
             - containerPort: 8080
           env:
