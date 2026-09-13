@@ -23,7 +23,7 @@ spec:
         - name: aoe2-tournament-bot
           # REPLACE_ME: set to a real pushed tag (ghcr.io/zetatwo/aoe2-tournament-bot:<git-sha>)
           # before this manifest is merged to main — CI rewrites this line on every push.
-          image: ghcr.io/zetatwo/aoe2-tournament-bot:77ce7cf4f5f609730553ebbd3d0fd8be0f4aaa1f
+          image: ghcr.io/zetatwo/aoe2-tournament-bot:a3f67f16f024fee253a23eb0f9209390c83a082b
           env:
             - name: RUST_LOG
               value: "info,serenity=warn"
