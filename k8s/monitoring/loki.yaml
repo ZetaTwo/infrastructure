@@ -74,6 +74,13 @@ spec:
           type: local
           local:
             directory: /rules
+    sidecar:
+      rules:
+        # Single-tenant Loki (auth_enabled: false) reads rules from
+        # /rules/fake — the sidecar only writes into a per-tenant
+        # subdirectory via this per-ConfigMap annotation, set on the rules
+        # ConfigMap below.
+        folderAnnotation: loki_rule_folder
     gateway:
       enabled: false
     test:
@@ -87,3 +94,33 @@ spec:
         enabled: false
       serviceMonitor:
         enabled: false
+    # Picked up by the sidecar above and dropped into /rules/fake, per the
+    # loki_rule_folder annotation. `sum by (app)` gives each erroring app
+    # its own alert identity, so two apps erroring independently fire (and
+    # resolve) as two separate alerts.
+    #
+    # extraObjects is rendered through Helm's `tpl` (like customConfig in
+    # vector.yaml), so the ruler's own {{ $labels.app }} annotation syntax
+    # has to be escaped as {{ "{{ $labels.app }}" }} below so Helm doesn't
+    # try to evaluate it itself.
+    extraObjects:
+      - apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: loki-rules-app-errors
+          labels:
+            loki_rule: "true"
+          annotations:
+            loki_rule_folder: /rules/fake
+        data:
+          app-errors.yaml: |
+            groups:
+              - name: app-errors
+                rules:
+                  - alert: LogError
+                    expr: sum by (app) (count_over_time({level="ERROR"}[1m])) > 0
+                    for: 0m
+                    labels:
+                      severity: warning
+                    annotations:
+                      summary: '{{ "{{ $labels.app }}" }} logged an ERROR'

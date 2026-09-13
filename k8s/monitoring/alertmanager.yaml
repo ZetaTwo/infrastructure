@@ -27,10 +27,22 @@ spec:
       global: {}
       route:
         receiver: discord
-        group_by: ["alertname"]
+        group_by: ["alertname", "app"]
         group_wait: 10s
         group_interval: 5m
         repeat_interval: 3h
+        routes:
+          # LogError (loki.yaml) fires once per app per evaluation window
+          # for as long as errors keep appearing — renotify much sooner
+          # than the 3h default so an ongoing incident isn't silent for
+          # hours. The node-resource alerts (vmalert.yaml) have no reason
+          # to repeat that fast, so they stay on the parent route above.
+          - matchers:
+              - alertname = "LogError"
+            group_by: ["alertname", "app"]
+            group_wait: 10s
+            group_interval: 1m
+            repeat_interval: 5m
       receivers:
         - name: discord
           discord_configs:

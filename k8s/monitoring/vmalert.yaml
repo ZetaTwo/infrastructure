@@ -26,6 +26,35 @@ spec:
         url: http://vmsingle.monitoring.svc.cluster.local:8428/api/v1/write
       notifier:
         url: http://alertmanager.monitoring.svc.cluster.local:9093
-      # No rule groups defined yet (chart default: config.alerts.groups: [])
-      # — add them under server.config.alerts.groups as alerting needs come
-      # up; each fired alert routes through Alertmanager to Discord.
+      config:
+        alerts:
+          groups:
+            - name: node
+              interval: 30s
+              rules:
+                - alert: HighMemoryUsage
+                  expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 90
+                  for: 2m
+                  labels:
+                    severity: warning
+                  annotations:
+                    summary: "Node memory usage above 90%"
+                - alert: HighCPUUsage
+                  # `for: 1m` on top of the 1m rate() window is what makes
+                  # this "sustained" — the condition has to hold across
+                  # consecutive evaluations, not just one sample.
+                  expr: 100 - avg(rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100 > 90
+                  for: 1m
+                  labels:
+                    severity: warning
+                  annotations:
+                    summary: "Node CPU usage above 90% for over a minute"
+                - alert: HighDiskUsage
+                  # fstype filter excludes node_exporter's pseudo-filesystem
+                  # noise (tmpfs, overlay, proc, sysfs, ...).
+                  expr: (1 - node_filesystem_avail_bytes{fstype=~"ext4|xfs|btrfs"} / node_filesystem_size_bytes{fstype=~"ext4|xfs|btrfs"}) * 100 > 90
+                  for: 2m
+                  labels:
+                    severity: warning
+                  annotations:
+                    summary: "Node disk usage above 90%"
