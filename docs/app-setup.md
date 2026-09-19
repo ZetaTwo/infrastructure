@@ -3,7 +3,8 @@
 Deploying and managing apps on an already-set-up cluster: GitOps, the
 staging/production pattern, per-app secrets bootstrap, and the shared auth
 gate. For provisioning the cluster itself, see
-[Cluster setup](cluster-setup.md).
+[Cluster setup](cluster-setup.md). If the app is stateful (has a PVC worth
+losing sleep over), see [Backups](backups.md) too.
 
 ## GitOps (Flux CD)
 

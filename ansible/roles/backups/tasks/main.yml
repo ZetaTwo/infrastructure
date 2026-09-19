@@ -1,0 +1,29 @@
+---
+- name: Ensure backup target namespaces exist
+  kubernetes.core.k8s:
+    name: "{{ item.namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: present
+  loop: "{{ backup_targets }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Apply backup secrets
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "{{ item.name }}-backup-secrets"
+        namespace: "{{ item.namespace }}"
+      type: Opaque
+      stringData:
+        AWS_ACCESS_KEY_ID: "{{ backups_s3_access_key }}"
+        AWS_SECRET_ACCESS_KEY: "{{ backups_s3_secret_key }}"
+        RESTIC_PASSWORD: "{{ item.restic_password }}"
+  loop: "{{ backup_targets }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true

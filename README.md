@@ -23,6 +23,8 @@ environment — with a single login, instead of per-app passwords.
   GitHub OAuth (oauth2-proxy) auth gate.
 - **[Monitoring](docs/monitoring.md)** — the observability stack design
   (Vector, VictoriaMetrics, Loki, Grafana, Alertmanager → Discord).
+- **[Backups](docs/backups.md)** — the general backup strategy for stateful
+  apps (restic to S3-compatible storage), and how a new app adopts it.
 - **[TODOs / deferred](docs/todo.md)** — known gaps and things deliberately
   left for later.
 

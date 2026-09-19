@@ -28,6 +28,15 @@ Podman+Caddy to k3s, rather than carried over 1:1:
   Fine for a single admin; would need a second oauth2-proxy instance (or a
   policy layer in front) if different apps ever need different allowed
   users/orgs.
+- **No live storage redundancy for stateful apps.** Every PVC uses
+  `local-path` (host-path, tied to the node's local disk) — see
+  [Backups](backups.md#storage). Backups are the only recovery mechanism,
+  not a layer on top of redundant storage. Revisit (Hetzner CSI + a
+  detachable Volume) once multi-node clustering exists.
+- **Backup restore procedure is undrilled.** [Backups](backups.md#restore)
+  documents the restore steps but they haven't been exercised against a
+  real backup yet. Do a real restore drill (into a scratch database) once
+  the first stateful app's backups exist, and periodically after.
 - **Vector's `victoriametrics` sink healthcheck.** Vector logs
   `Healthcheck failed: Unexpected status: 204 No Content` for the
   `prometheus_remote_write` sink (`k8s/monitoring/vector.yaml`) on every

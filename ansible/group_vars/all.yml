@@ -128,3 +128,21 @@ zetatwo_password_hash: !vault |
           65646337666131343234643331383165613336353336313438393461636366663064323039666462
           32393732653033313030623964333062316533396234326639303538353130643331343138626631
           62633231303838356431
+
+# Shared S3 credentials for the backups bucket (docs/backups.md,
+# docs/cluster-setup.md). backups_s3_endpoint/bucket aren't secret; the
+# access/secret key are.
+backups_s3_endpoint: "https://fsn1.your-objectstorage.com"
+backups_s3_bucket: "zetatwo-infra-backups"
+#   ansible-vault encrypt_string '<access key>' --name backups_s3_access_key --vault-password-file .vault_pass
+#   ansible-vault encrypt_string '<secret key>' --name backups_s3_secret_key --vault-password-file .vault_pass
+
+# ansible/roles/backups loops over this — one Secret per entry, in the
+# app's own namespace, with the shared S3 creds above plus its own
+# restic_password (see docs/backups.md's "Adding backups for a new
+# stateful app"). Empty until a real stateful app registers, e.g.:
+#   backup_targets:
+#     - name: postgres
+#       namespace: postgres
+#       restic_password: "{{ postgres_restic_password }}"
+backup_targets: []

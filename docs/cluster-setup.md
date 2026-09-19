@@ -159,6 +159,30 @@ need a bootstrap step: `ansible/roles/flux` fetches them live from
    that owns the token.
 4. `make ansible-apply`.
 
+### One-time backups bucket bootstrap
+
+Same pattern as the Terraform state bucket (step 3 above), but a separate
+bucket — see [Backups](backups.md) for why.
+
+1. Hetzner Cloud Console → **Object Storage** → create a bucket (e.g.
+   `zetatwo-infra-backups`, same `fsn1` region as the state bucket) and
+   generate an S3-compatible access key + secret key for it.
+2. Vault-encrypt both:
+   ```sh
+   ansible-vault encrypt_string '<access key>' \
+     --name backups_s3_access_key --vault-password-file ansible/.vault_pass
+   ansible-vault encrypt_string '<secret key>' \
+     --name backups_s3_secret_key --vault-password-file ansible/.vault_pass
+   ```
+   Append the resulting blocks to `group_vars/all.yml`.
+3. Confirm `backups_s3_endpoint`/`backups_s3_bucket` in `group_vars/all.yml`
+   match what you created.
+4. `make ansible-apply`.
+
+This only provisions the shared bucket credentials — see
+[Backups](backups.md#adding-backups-for-a-new-stateful-app) for adding an
+actual app to `backup_targets`.
+
 ## Admin login (zetatwo)
 
 The `users` role creates a single non-root admin account, `zetatwo`, in the
