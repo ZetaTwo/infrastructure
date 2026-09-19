@@ -1,11 +1,15 @@
 # Admin credentials come from a Secret applied by ansible/roles/monitoring
-# (not Flux-managed) — see admin.existingSecret below. This is a two-layer
-# setup: reachability is gated by the shared GitHub OAuth ForwardAuth
-# middlewares in grafana-ingress.yaml (network-level — only an allowlisted
-# GitHub identity can reach this Ingress at all), while this admin account
-# is Grafana's own separate, in-app login, kept only as a break-glass
-# fallback (e.g. if the GitHub OAuth gate is ever misconfigured or down) —
-# oauth2-proxy has no way to tell Grafana who authenticated.
+# (not Flux-managed) — see admin.existingSecret below. Kept only as a
+# break-glass fallback (e.g. if the GitHub OAuth gate is ever
+# misconfigured or down) — normal login now goes through grafana.ini's
+# [auth.proxy] below, which trusts the X-Auth-Request-User/-Email headers
+# the oauth2-proxy-auth Middleware (k8s/auth/middleware.yaml) already sets
+# on every authenticated request via authResponseHeaders — so Grafana logs
+# the user in directly with their GitHub identity, no separate Grafana
+# login screen. auth.proxy only activates when that header is present;
+# a request that reaches Grafana without going through Traefik+oauth2-proxy
+# (e.g. via kubectl port-forward for break-glass access) falls through to
+# the normal login form instead.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -25,6 +29,31 @@ spec:
       existingSecret: grafana-admin-credentials
       userKey: admin-user
       passwordKey: admin-password
+    grafana.ini:
+      auth.proxy:
+        enabled: true
+        header_name: X-Auth-Request-User
+        # GitHub login (e.g. "ZetaTwo"), not email — oauth2-proxy's GitHub
+        # provider never populates PreferredUsername, only User (=login)
+        # and Email, so header_name must be X-Auth-Request-User here.
+        header_property: username
+        auto_sign_up: true
+        # Syncs email from the same forwardAuth response headers.
+        headers: "Email:X-Auth-Request-Email"
+        # Restricts which source IPs Grafana will trust the header from —
+        # defense in depth against a request that reached the Service
+        # directly, bypassing Traefik+oauth2-proxy entirely. This is the
+        # cluster's pod CIDR (single-node k3s default), so it's coarse —
+        # the real security boundary is Traefik's forwardAuth
+        # authResponseHeaders, which always overwrites any client-supplied
+        # X-Auth-Request-* header with oauth2-proxy's own before forwarding.
+        whitelist: 10.42.0.0/16
+        enable_login_token: true
+      users:
+        # The only account that can ever reach this (oauth2-proxy allows
+        # just one GitHub user through) — give it Admin, not the chart's
+        # default Viewer, on auto-provision.
+        auto_assign_org_role: Admin
     # Persistence defaults to disabled in this chart (unlike the other
     # components here) — enabled so dashboards/settings survive a pod
     # restart.

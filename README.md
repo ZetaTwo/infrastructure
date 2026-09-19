@@ -402,8 +402,11 @@ monitoring`):
    `ghcr_pull_token`/`zetatwo_password_hash`), then `make ansible-apply`.
 
 Grafana's admin login here is a break-glass fallback only — normal access
-goes through the shared GitHub OAuth gate, see "Auth (GitHub OAuth via
-oauth2-proxy)" below.
+goes through the shared GitHub OAuth gate (see "Auth (GitHub OAuth via
+oauth2-proxy)" below), and Grafana itself logs the user in automatically
+with their GitHub identity via `[auth.proxy]` in `k8s/monitoring/grafana.yaml`
+(trusting the `X-Auth-Request-User`/`-Email` headers oauth2-proxy's
+ForwardAuth Middleware sets), so there's no second, separate login screen.
 
 ### One-time Auth (GitHub OAuth via oauth2-proxy) bootstrap
 
@@ -412,10 +415,13 @@ oauth2-proxy)" below.
 by GitHub OAuth and restricted to an allowlist of GitHub usernames. It's the
 cluster's one login for every non-public app — see Grafana's
 `k8s/monitoring/grafana-ingress.yaml` for the reference usage. Important
-distinction: this middleware only gates *reachability* to an Ingress (can
-this browser get through at all); it has no way to tell an app who
-authenticated, so any app that needs the identity itself would need to read
-the `X-Auth-Request-*`/`Authorization` headers the middleware forwards.
+distinction: this middleware, by itself, only gates *reachability* to an
+Ingress (can this browser get through at all) — it has no way to tell an
+app who authenticated unless the app is explicitly configured to read the
+`X-Auth-Request-*`/`Authorization` headers the middleware forwards, the way
+Grafana's `[auth.proxy]` config does (see the production secrets bootstrap
+above) to skip its own separate login screen. An app that doesn't do this
+still gets its own, separate in-app login (if it has one) behind the gate.
 
 1. Create a GitHub OAuth App (**not** a GitHub App): GitHub → Settings →
    Developer settings → OAuth Apps → New OAuth App.
