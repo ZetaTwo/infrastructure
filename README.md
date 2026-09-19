@@ -294,7 +294,7 @@ need a bootstrap step: `ansible/roles/flux` fetches them live from
 
 The observability stack itself (Vector, VictoriaMetrics, Loki, Grafana,
 Alertmanager — see `MONITORING.md` and `k8s/monitoring/`) is entirely
-Flux-managed, but its three secrets are not, following the same pattern as
+Flux-managed, but its secrets are not, following the same pattern as
 `aoe2-groups-proxy`/`aoe2-tournament-bot` above (`ansible/roles/
 monitoring`):
 
@@ -310,17 +310,60 @@ monitoring`):
    ansible-vault encrypt_string '<a generated password>' \
      --name grafana_admin_password --vault-password-file ansible/.vault_pass
    ```
-3. Generate a htpasswd credential (a *different* password from step 2 —
-   this one gates the Traefik `Middleware` in front of Grafana, not
-   Grafana's own login) and vault-encrypt the resulting line:
+3. Append both resulting blocks to `ansible/group_vars/all.yml` (alongside
+   `ghcr_pull_token`/`zetatwo_password_hash`), then `make ansible-apply`.
+
+Grafana's admin login here is a break-glass fallback only — normal access
+goes through the shared GitHub OAuth gate, see "Auth (GitHub OAuth via
+oauth2-proxy)" below.
+
+### One-time Auth (GitHub OAuth via oauth2-proxy) bootstrap
+
+`k8s/auth/` runs a single `oauth2-proxy` instance as a reusable Traefik
+`ForwardAuth` gate (`ansible/roles/oauth2_proxy` applies its secrets), backed
+by GitHub OAuth and restricted to an allowlist of GitHub usernames. It's the
+cluster's one login for every non-public app — see Grafana's
+`k8s/monitoring/grafana-ingress.yaml` for the reference usage. Important
+distinction: this middleware only gates *reachability* to an Ingress (can
+this browser get through at all); it has no way to tell an app who
+authenticated, so any app that needs the identity itself would need to read
+the `X-Auth-Request-*`/`Authorization` headers the middleware forwards.
+
+1. Create a GitHub OAuth App (**not** a GitHub App): GitHub → Settings →
+   Developer settings → OAuth Apps → New OAuth App.
+   - Homepage URL: `https://auth.zetatwo.dev`
+   - Authorization callback URL: `https://auth.zetatwo.dev/oauth2/callback`
+
+   Vault-encrypt the resulting client ID and client secret:
    ```sh
-   htpasswd -nbB grafana '<a different generated password>' \
-     | ansible-vault encrypt_string --stdin-name grafana_basic_auth_htpasswd \
+   ansible-vault encrypt_string '<client id>' \
+     --name oauth2_proxy_client_id --vault-password-file ansible/.vault_pass
+   ansible-vault encrypt_string '<client secret>' \
+     --name oauth2_proxy_client_secret --vault-password-file ansible/.vault_pass
+   ```
+2. Generate and vault-encrypt a cookie secret (32 random bytes):
+   ```sh
+   python3 -c "import secrets, base64; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())" \
+     | ansible-vault encrypt_string --stdin-name oauth2_proxy_cookie_secret \
        --vault-password-file ansible/.vault_pass
    ```
-4. Append all three resulting blocks to `ansible/group_vars/all.yml`
-   (alongside `ghcr_pull_token`/`zetatwo_password_hash`), then
+3. Append all three resulting blocks to `ansible/group_vars/all.yml`, then
    `make ansible-apply`.
+4. Edit `k8s/auth/deployment.yaml`'s `--github-user=...` flag to the
+   allowlisted GitHub username(s) (comma-separated for more than one) — this
+   is plain committed text, not a secret, since nothing under `k8s/` is
+   templated by Ansible. `git push`.
+
+**A future app opts in** by adding one annotation to its Ingress — no new
+Deployment, Secret, or per-app oauth2-proxy config:
+
+```yaml
+traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-auth@kubernetescrd,auth-oauth2-proxy-errors@kubernetescrd
+```
+
+Restricting different apps to different GitHub users/orgs isn't supported
+yet — one oauth2-proxy instance has one global allowlist; deferred until
+actually needed (see TODOs below).
 
 ## TODOs / deferred
 
@@ -345,6 +388,11 @@ Podman+Caddy to k3s, rather than carried over 1:1:
   today just creates independent single-node servers. Needs k3s
   server/agent join logic (a shared cluster token, one initial server node)
   before it's actually usable.
+- **Per-app auth allowlists.** `k8s/auth/`'s oauth2-proxy has one global
+  `--github-user` allowlist shared by every app behind it (see "Auth
+  (GitHub OAuth via oauth2-proxy)" above). Fine for a single admin; would
+  need a second oauth2-proxy instance (or a policy layer in front) if
+  different apps ever need different allowed users/orgs.
 - **Vector's `victoriametrics` sink healthcheck.** Vector logs
   `Healthcheck failed: Unexpected status: 204 No Content` for the
   `prometheus_remote_write` sink (`k8s/monitoring/vector.yaml`) on every
@@ -389,8 +437,9 @@ any specific purpose — any DNS record or app can use any label. Currently:
 - `zetatwo_dev` → `zetatwo.dev` — hosts each node's own DNS name
   (`node1.zetatwo.dev`, `node2.zetatwo.dev`, ... one per `var.node_count`,
   used as the SSH/Ansible target instead of a raw IP, see `terraform/dns.tf`
-  and `terraform/inventory.tf`). Otherwise reserved for future
-  admin/management surfaces (see the TODOs above), but nothing stops it
+  and `terraform/inventory.tf`), plus admin/management surfaces:
+  `grafana.zetatwo.dev` and `auth.zetatwo.dev` (the shared GitHub OAuth
+  gate, see "Auth (GitHub OAuth via oauth2-proxy)" above). Nothing stops it
   being used for something else too — e.g. dev instances at
   `dev.zetatwo.dev` would just be another record on the `zetatwo_dev`
   label.

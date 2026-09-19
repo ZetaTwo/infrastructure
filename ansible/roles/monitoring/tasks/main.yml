@@ -42,17 +42,3 @@
         admin-user: admin
         admin-password: "{{ grafana_admin_password }}"
   no_log: true
-
-- name: Apply Grafana basic-auth secret
-  kubernetes.core.k8s:
-    state: present
-    definition:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: grafana-basic-auth
-        namespace: monitoring
-      type: Opaque
-      stringData:
-        users: "{{ grafana_basic_auth_htpasswd }}"
-  no_log: true

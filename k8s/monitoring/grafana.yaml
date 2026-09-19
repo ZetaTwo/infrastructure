@@ -1,8 +1,11 @@
-# Admin credentials come from a Secret applied by the new
-# ansible/roles/monitoring role (not Flux-managed) — see
-# admin.existingSecret below. Public access is gated by the Traefik
-# basic-auth Middleware in grafana-ingress.yaml, in front of Grafana's own
-# login.
+# Admin credentials come from a Secret applied by ansible/roles/monitoring
+# (not Flux-managed) — see admin.existingSecret below. This is a two-layer
+# setup: reachability is gated by the shared GitHub OAuth ForwardAuth
+# middlewares in grafana-ingress.yaml (network-level — only an allowlisted
+# GitHub identity can reach this Ingress at all), while this admin account
+# is Grafana's own separate, in-app login, kept only as a break-glass
+# fallback (e.g. if the GitHub OAuth gate is ever misconfigured or down) —
+# oauth2-proxy has no way to tell Grafana who authenticated.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
