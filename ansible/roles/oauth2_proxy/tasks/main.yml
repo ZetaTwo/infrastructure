@@ -1,0 +1,27 @@
+---
+- name: Ensure auth namespace exists
+  kubernetes.core.k8s:
+    name: auth
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Apply oauth2-proxy secrets
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: oauth2-proxy-secrets
+        namespace: auth
+      type: Opaque
+      stringData:
+        # Keys match oauth2-proxy's OAUTH2_PROXY_* env var convention
+        # (https://oauth2-proxy.github.io/oauth2-proxy/configuration/overview#command-line-options)
+        # so k8s/auth/deployment.yaml can consume this Secret via envFrom
+        # with no extra key mapping.
+        OAUTH2_PROXY_CLIENT_ID: "{{ oauth2_proxy_client_id }}"
+        OAUTH2_PROXY_CLIENT_SECRET: "{{ oauth2_proxy_client_secret }}"
+        OAUTH2_PROXY_COOKIE_SECRET: "{{ oauth2_proxy_cookie_secret }}"
+  no_log: true

@@ -1,0 +1,55 @@
+# oauth2-proxy is used purely as a Traefik ForwardAuth target (see
+# middleware.yaml) — it has no real upstream backend of its own
+# (--upstream=static://202), it only decides whether a request may proceed.
+# --github-user is a plaintext allowlist committed directly here because
+# nothing under k8s/ is templated by Ansible; only secret values (client
+# id/secret, cookie secret — see the oauth2-proxy-secrets Secret applied by
+# ansible/roles/oauth2_proxy) go through Ansible Vault.
+#
+# Image tag pinned deliberately, same convention as k3s_version/
+# flux_version in ansible/group_vars/all.yml — verify current releases at:
+#   https://github.com/oauth2-proxy/oauth2-proxy/releases
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app: oauth2-proxy
+    spec:
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.4
+          args:
+            - --provider=github
+            # GitHub username(s) allowed through this cluster's auth gate
+            # (comma-separated for multiple).
+            - --github-user=ZetaTwo
+            # Required even with --github-user set, or GitHub logins are
+            # rejected after the OAuth handshake completes — see
+            # https://oauth2-proxy.github.io/oauth2-proxy/configuration/providers/github
+            - --email-domain=*
+            - --redirect-url=https://auth.zetatwo.dev/oauth2/callback
+            # .zetatwo.dev (not just auth.zetatwo.dev) so the session cookie
+            # is reusable by future apps under the same domain, per the
+            # reusability goal for this component.
+            - --cookie-domain=.zetatwo.dev
+            - --whitelist-domain=.zetatwo.dev
+            - --upstream=static://202
+            - --http-address=0.0.0.0:4180
+            - --reverse-proxy=true
+            - --set-xauthrequest=true
+            - --pass-access-token=true
+            - --pass-authorization-header=true
+            - --cookie-secure=true
+          envFrom:
+            - secretRef:
+                name: oauth2-proxy-secrets
+          ports:
+            - containerPort: 4180

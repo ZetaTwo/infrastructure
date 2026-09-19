@@ -3,4 +3,5 @@ kind: Kustomization
 resources:
   - aoe2-groups-overlay
   - aoe2-tournament-bot
+  - auth
   - monitoring

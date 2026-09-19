@@ -16,4 +16,5 @@
     - ghcr_pull_secret
     - aoe2_groups_proxy
     - aoe2_tournament_bot
+    - oauth2_proxy
     - monitoring
