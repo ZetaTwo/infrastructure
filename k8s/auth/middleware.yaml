@@ -35,7 +35,16 @@ spec:
     service:
       name: oauth2-proxy
       port: 4180
-    query: /oauth2/sign_in?rd={url}
+    # /oauth2/start (not /oauth2/sign_in) deliberately: oauth2-proxy's
+    # sign_in page template uses host-relative links/form actions
+    # (e.g. action="/oauth2/start"), which break when this middleware
+    # serves that page's content in place of the original host's response —
+    # the browser stays on the protected app's origin (e.g.
+    # grafana.zetatwo.dev), so those relative links resolve against the
+    # wrong host and go nowhere. /oauth2/start instead returns a genuine
+    # 302 with an absolute Location straight to GitHub's OAuth authorize
+    # endpoint, which has no such problem and skips the extra click.
+    query: /oauth2/start?rd={url}
     # Without this, Traefik forwards oauth2-proxy's sign-in page body but
     # keeps the original 401/403 status, so browsers show it as an error
     # page instead of following it as a redirect.
