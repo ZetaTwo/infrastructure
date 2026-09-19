@@ -2,7 +2,7 @@
 # via:
 #   traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-errors@kubernetescrd,auth-oauth2-proxy-auth@kubernetescrd
 # See k8s/monitoring/grafana-ingress.yaml for the reference usage and
-# README.md's "Auth (GitHub OAuth via oauth2-proxy)" section.
+# docs/app-setup.md's "Auth (GitHub OAuth via oauth2-proxy)" section.
 #
 # Two middlewares are needed together: forwardAuth alone only relays
 # whatever status code oauth2-proxy's /oauth2/auth returns (401 for

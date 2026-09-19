@@ -1,6 +1,6 @@
 # Single-binary Loki (no S3/object storage, no separate read/write/backend
 # components) — matches the single-node, resource-conscious scope of
-# MONITORING.md. Storage is a local PVC on k3s's default "local-path"
+# docs/monitoring.md. Storage is a local PVC on k3s's default "local-path"
 # StorageClass. Vector pushes logs here (vector.yaml sink) and Grafana
 # queries it. Log-based alerting (ERROR-level lines) is handled directly
 # by Vector posting to Discord (vector.yaml), not by Loki's ruler — see

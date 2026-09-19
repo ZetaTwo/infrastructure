@@ -1,6 +1,6 @@
 # Runs as a DaemonSet (role: Agent), tailing every pod's logs on the node,
 # scraping node_exporter, and reporting its own internal metrics — per
-# MONITORING.md's architecture. Also posts ERROR-level log lines straight
+# docs/monitoring.md's architecture. Also posts ERROR-level log lines straight
 # to Discord (own throttle, bypassing Alertmanager) since that's the only
 # place the original log text is ever available — see the transforms
 # below. Metrics alerting stays on vmalert → Alertmanager (vmalert.yaml).
@@ -9,7 +9,7 @@
 # docs: "if used, **all** options need to be specified") — this is the
 # stock "Agent" config the chart would otherwise generate (see the vector
 # chart's templates/configmap.yaml), extended with the VRL transform from
-# MONITORING.md's vector.yaml snippet and two sinks (Loki, VictoriaMetrics)
+# docs/monitoring.md's vector.yaml snippet and two sinks (Loki, VictoriaMetrics)
 # in place of the default's stdout-only sink.
 #
 # Since the whole customConfig is rendered through Helm's `tpl`, Vector's

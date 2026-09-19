@@ -1,5 +1,5 @@
 # vmalert evaluates metrics-based alerting rules against VictoriaMetrics
-# and fires them to Alertmanager. MONITORING.md doesn't name a rule
+# and fires them to Alertmanager. docs/monitoring.md doesn't name a rule
 # evaluator explicitly ("VictoriaMetrics constantly evaluates rules") but
 # VictoriaMetrics itself only stores metrics — vmalert is the component
 # that actually runs the rule queries. Loki's own ruler (see loki.yaml)
