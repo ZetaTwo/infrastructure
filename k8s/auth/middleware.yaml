@@ -1,6 +1,6 @@
 # Reusable Traefik ForwardAuth gate — any Ingress in any namespace opts in
 # via:
-#   traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-auth@kubernetescrd,auth-oauth2-proxy-errors@kubernetescrd
+#   traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-errors@kubernetescrd,auth-oauth2-proxy-auth@kubernetescrd
 # See k8s/monitoring/grafana-ingress.yaml for the reference usage and
 # README.md's "Auth (GitHub OAuth via oauth2-proxy)" section.
 #

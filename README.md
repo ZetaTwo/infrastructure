@@ -358,7 +358,7 @@ the `X-Auth-Request-*`/`Authorization` headers the middleware forwards.
 Deployment, Secret, or per-app oauth2-proxy config:
 
 ```yaml
-traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-auth@kubernetescrd,auth-oauth2-proxy-errors@kubernetescrd
+traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-errors@kubernetescrd,auth-oauth2-proxy-auth@kubernetescrd
 ```
 
 Restricting different apps to different GitHub users/orgs isn't supported

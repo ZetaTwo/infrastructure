@@ -11,7 +11,7 @@ metadata:
   name: grafana
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-auth@kubernetescrd,auth-oauth2-proxy-errors@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-errors@kubernetescrd,auth-oauth2-proxy-auth@kubernetescrd
 spec:
   ingressClassName: traefik
   tls:
