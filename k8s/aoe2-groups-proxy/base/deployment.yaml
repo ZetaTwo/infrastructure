@@ -18,9 +18,10 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: aoe2-groups-proxy
-          # REPLACE_ME: set to a real pushed tag (ghcr.io/zetatwo/aoe2-groups-proxy:<git-sha>)
-          # before this manifest is merged to main — CI rewrites this line on every push.
-          image: ghcr.io/zetatwo/aoe2-groups-proxy:db56d1e19304b54f90a6726a0c6b87148206b716
+          # Always overridden by each overlay's own images: newTag: (see
+          # overlays/staging and overlays/production) — this literal tag is
+          # never actually deployed.
+          image: ghcr.io/zetatwo/aoe2-groups-proxy:placeholder-overridden-by-overlay
           ports:
             - containerPort: 8080
           env:

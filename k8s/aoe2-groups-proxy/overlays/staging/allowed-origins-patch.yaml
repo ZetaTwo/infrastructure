@@ -1,0 +1,17 @@
+# Strategic-merge patch: env vars are merge-keyed by `name` in the Pod
+# schema, so this overrides just ALLOWED_ORIGINS without repeating the rest
+# of the container spec. Adds a local frontend dev server as an allowed
+# origin alongside the production one, so it can point at staging directly
+# — adjust if a different staging frontend origin is wanted.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aoe2-groups-proxy
+spec:
+  template:
+    spec:
+      containers:
+        - name: aoe2-groups-proxy
+          env:
+            - name: ALLOWED_ORIGINS
+              value: "https://aoe2streaming.zeta-two.com,http://localhost:5173"

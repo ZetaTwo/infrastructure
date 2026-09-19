@@ -142,8 +142,11 @@ Terraform changes needed for the deployment itself:
    `k8s/<name>/{namespace,deployment}.yaml` (plus `service.yaml`/
    `ingress.yaml` if it's a web app) and a `k8s/<name>/kustomization.yaml`
    listing them (`namespace.yaml` included as a resource, plus a top-level
-   `namespace: <name>` in that file) — follow `k8s/aoe2-groups-overlay/`
-   (web app) or `k8s/aoe2-tournament-bot/` (headless) as the reference. The
+   `namespace: <name>` in that file) — follow `k8s/aoe2-tournament-bot/`
+   (headless, single environment) as the reference, or
+   `k8s/aoe2-groups-proxy/` (web app with a staging + production split —
+   see "Staging and production" below) if the new app needs the same
+   split. The
    explicit namespace matters: unlike plain `kubectl apply`, Flux's
    kustomize-controller does **not** default un-namespaced resources to
    `default` and fails with a confusing `namespace not specified: the
@@ -178,7 +181,7 @@ secrets-encryption system (e.g. SOPS) alongside `ansible-vault`.
 Private images: `ghcr-pull-secret` (`ansible/roles/ghcr_pull_secret`)
 exists for pulling private `ghcr.io` images — reference it from any app's
 Deployment with `imagePullSecrets: [{name: ghcr-pull-secret}]` (see
-`k8s/aoe2-groups-overlay/deployment.yaml`). Since k8s Secrets can't be
+`k8s/aoe2-groups-proxy/base/deployment.yaml`). Since k8s Secrets can't be
 referenced across namespaces, the role loops over
 `ghcr_pull_secret_namespaces` (`group_vars/all.yml`) and creates one copy
 of the same underlying token per namespace — add a new app's namespace to
@@ -188,12 +191,62 @@ made public it can't be made private again — so `aoe2-groups-proxy` stays
 private and pulls via this secret rather than being flipped public.
 
 Image updates: CI (in the app's own repo) builds and pushes an image, then
-commits an update to the image tag in `k8s/<name>/deployment.yaml` and
-pushes to `main` — see `aoe2-streaming`'s `.github/workflows/
-backend-deploy.yml` for the reference implementation. Flux is **not**
+commits an update to the image tag and pushes to `main`. Flux is **not**
 running its image-automation-controllers (would add 2 more controllers and
 require its deploy key to be read-write instead of read-only) — the CI job
-in the app's own repo owns the tag bump instead.
+in the app's own repo owns the tag bump instead. There are two patterns in
+use, depending on whether the app has a staging tier (see "Staging and
+production" below for why some apps don't):
+
+- **Single-environment apps** (e.g. `k8s/aoe2-tournament-bot/`): CI commits
+  a tag bump straight to `deployment.yaml`'s `image:` line on every push to
+  `main` — see `aoe2-tournament-bot`'s `.github/workflows/ci.yml` for the
+  reference implementation.
+- **Staging/production apps** (e.g. `k8s/aoe2-groups-proxy/`): CI bumps the
+  relevant overlay's kustomize `images: newTag:` line instead of a
+  `deployment.yaml` image string directly — see "Staging and production"
+  below.
+
+### Staging and production
+
+Apps that need it get a kustomize `base` + `overlays/{staging,production}`
+split (`k8s/aoe2-groups-proxy/` is the reference) instead of a flat
+`k8s/<name>/` directory:
+
+- `base/` holds the Deployment/Service common to both environments, with an
+  inert placeholder image tag — every overlay's own `images:` transformer
+  always overrides it by repository name, so the literal placeholder is
+  never actually deployed.
+- `overlays/staging/` adds its own `namespace.yaml` (`<name>-staging`),
+  `ingress.yaml` (host `<name>.zetatwo.dev`, gated behind the shared GitHub
+  OAuth forward-auth — see "Auth (GitHub OAuth via oauth2-proxy)" above),
+  any environment-specific config as a strategic-merge patch (e.g.
+  `allowed-origins-patch.yaml`), and an `images: newTag:` CI updates on
+  every push to `main`.
+- `overlays/production/` mirrors it with the app's real namespace, host
+  `<name>.zeta-two.com` (public, no auth middleware), and an `images:
+  newTag:` CI updates **only** when a GitHub Release is published.
+- Root `k8s/kustomization.yaml` lists both overlays as separate resources
+  — they're two permanently co-resident Deployments, not templated
+  variants of one.
+
+CI's production job doesn't rebuild the image — it verifies the release's
+commit already produced a `:<sha>` image (via the `deploy-staging` job
+having already run against it) and promotes that exact artifact with
+`docker buildx imagetools create --tag <image>:<release-tag>
+<image>:<sha>`, so what ships to production is bit-identical to what was
+tested in staging. See `aoe2-streaming`'s `.github/workflows/
+backend-deploy.yml` for the reference `deploy-staging`/`deploy-production`
+implementation. If a release is cut from a commit that never went through
+`deploy-staging` (e.g. tagged from a branch, not `main`), this step fails
+loudly rather than promoting an untested artifact.
+
+Not every app needs this split — `aoe2-tournament-bot` (a Discord bot)
+deliberately has no staging tier, since Discord allows only one gateway
+connection per bot token and a second running instance would conflict with
+production. It still moved from "deploy on every push" to "deploy only on
+release, promoting the tested image" (see `.github/workflows/ci.yml`'s
+`deploy-production` job) — it just has one environment instead of two.
 
 One naming gotcha: plain Kustomize's config file (`kustomization.yaml`,
 `apiVersion: kustomize.config.k8s.io/v1beta1`, never applied to the
@@ -246,7 +299,7 @@ need a bootstrap step: `ansible/roles/flux` fetches them live from
    that owns the token.
 4. `make ansible-apply`.
 
-### One-time aoe2-groups-proxy secrets bootstrap
+### One-time aoe2-groups-proxy production secrets bootstrap
 
 1. Export the runtime service account's key and fetch the real
    `sheet-ids.toml`:
@@ -258,12 +311,47 @@ need a bootstrap step: `ansible/roles/flux` fetches them live from
      --secret=aoe2-groups-proxy-sheet-ids --project=aoe2-streaming \
      > sheet-ids.toml
    ```
-2. Move both into the role's `files/` and vault-encrypt them in place:
+2. Move both into the role's `files/production/` and vault-encrypt them in
+   place:
    ```sh
-   mv service-account.json sheet-ids.toml ansible/roles/aoe2_groups_proxy/files/
-   ansible-vault encrypt ansible/roles/aoe2_groups_proxy/files/service-account.json \
+   mv service-account.json sheet-ids.toml ansible/roles/aoe2_groups_proxy/files/production/
+   ansible-vault encrypt ansible/roles/aoe2_groups_proxy/files/production/service-account.json \
      --vault-password-file ansible/.vault_pass
-   ansible-vault encrypt ansible/roles/aoe2_groups_proxy/files/sheet-ids.toml \
+   ansible-vault encrypt ansible/roles/aoe2_groups_proxy/files/production/sheet-ids.toml \
+     --vault-password-file ansible/.vault_pass
+   ```
+3. `make ansible-apply`.
+
+### One-time aoe2-groups-proxy staging secrets bootstrap
+
+The per-environment split under `ansible/roles/aoe2_groups_proxy/files/`
+supports fully separate credentials per environment (each namespace gets
+its own copy of the Secret, from its own `files/<name>/` pair) — but for
+aoe2-groups-proxy specifically, staging deliberately reuses production's
+service account and Google Sheet rather than provisioning dedicated ones.
+This was a one-off, judgment call for this app (low risk: read-mostly Sheet
+access, no destructive writes), not the default policy — a future app
+added to this split should default to separate staging credentials unless
+there's a similar reason not to.
+
+1. Reuse the same service account and Sheet as production (see "...
+   production secrets bootstrap" above), fetching a fresh key the same way:
+   ```sh
+   gcloud iam service-accounts keys create service-account.json \
+     --iam-account=groups-proxy@aoe2-streaming.iam.gserviceaccount.com \
+     --project=aoe2-streaming
+   gcloud secrets versions access latest \
+     --secret=aoe2-groups-proxy-sheet-ids --project=aoe2-streaming \
+     > sheet-ids.toml
+   ```
+2. Move both into the role's `files/staging/` and vault-encrypt them in
+   place — still a separate vaulted copy from `files/production/` (each
+   namespace needs its own Secret object), just with identical content:
+   ```sh
+   mv service-account.json sheet-ids.toml ansible/roles/aoe2_groups_proxy/files/staging/
+   ansible-vault encrypt ansible/roles/aoe2_groups_proxy/files/staging/service-account.json \
+     --vault-password-file ansible/.vault_pass
+   ansible-vault encrypt ansible/roles/aoe2_groups_proxy/files/staging/sheet-ids.toml \
      --vault-password-file ansible/.vault_pass
    ```
 3. `make ansible-apply`.
@@ -433,16 +521,20 @@ Cloudflare zones are declared as a label → zone ID map,
 `var.cloudflare_zones` (`terraform/secrets.auto.tfvars`), and aren't tied to
 any specific purpose — any DNS record or app can use any label. Currently:
 
-- `zetatwo_com` → `zeta-two.com` — hobby apps, e.g. `aoe2-groups.zeta-two.com`.
+- `zetatwo_com` → `zeta-two.com` — production hobby apps, e.g.
+  `aoe2-groups.zeta-two.com`.
 - `zetatwo_dev` → `zetatwo.dev` — hosts each node's own DNS name
   (`node1.zetatwo.dev`, `node2.zetatwo.dev`, ... one per `var.node_count`,
   used as the SSH/Ansible target instead of a raw IP, see `terraform/dns.tf`
-  and `terraform/inventory.tf`), plus admin/management surfaces:
-  `grafana.zetatwo.dev` and `auth.zetatwo.dev` (the shared GitHub OAuth
-  gate, see "Auth (GitHub OAuth via oauth2-proxy)" above). Nothing stops it
-  being used for something else too — e.g. dev instances at
-  `dev.zetatwo.dev` would just be another record on the `zetatwo_dev`
-  label.
+  and `terraform/inventory.tf`), admin/management surfaces
+  (`grafana.zetatwo.dev` and `auth.zetatwo.dev`, the shared GitHub OAuth
+  gate — see "Auth (GitHub OAuth via oauth2-proxy)" above), and staging
+  deploys of apps that have one (e.g. `aoe2-groups.zetatwo.dev` — see
+  "Staging and production" above), also gated behind that same OAuth gate.
+
+The convention going forward: `<app>.zetatwo.dev` = staging (auth-gated),
+`<app>.zeta-two.com` = production (public). Nothing stops the zone being
+used for something else too.
 
 The zone IDs are the single source of truth: Terraform looks up each zone's
 domain name via a `for_each`'d `cloudflare_zone` data source
