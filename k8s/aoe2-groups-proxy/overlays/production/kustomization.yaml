@@ -11,4 +11,4 @@ images:
   # the exact image already tested in staging (retagged, not rebuilt).
   # Keep it as the only `newTag:` occurrence in this file.
   - name: ghcr.io/zetatwo/aoe2-groups-proxy
-    newTag: db56d1e19304b54f90a6726a0c6b87148206b716
+    newTag: v1
