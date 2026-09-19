@@ -6,9 +6,7 @@ resources:
   - namespace.yaml
   - ingress.yaml
 images:
-  # CI's deploy-production job (aoe2-streaming's backend-deploy.yml)
-  # rewrites this line only when a GitHub Release is published, promoting
-  # the exact image already tested in staging (retagged, not rebuilt).
-  # Keep it as the only `newTag:` occurrence in this file.
+  # CI's deploy-production job rewrites this on release only. Keep it the
+  # only `newTag:` in this file.
   - name: ghcr.io/zetatwo/aoe2-groups-proxy
     newTag: v1

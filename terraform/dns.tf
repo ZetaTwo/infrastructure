@@ -1,13 +1,8 @@
-# Explicit per-hostname DNS records — never a wildcard. Add one record here
-# per hostname, picking any label from var.cloudflare_zones as its zone —
-# labels aren't tied to a specific purpose (e.g. a "dev" hostname can live on
-# the "zetatwo_dev" zone, or any other label added to cloudflare_zones), so
-# adding a zone or repurposing one doesn't require any changes outside tfvars.
+# Explicit per-hostname DNS records — never a wildcard. Labels in
+# var.cloudflare_zones aren't tied to a purpose; any label works for any
+# record.
 
-# One DNS name per cluster node (node1, node2, ...) — used as the
-# Ansible/SSH target (see terraform/inventory.tf) instead of a raw IP, so it
-# keeps working if a node's address ever changes. k3s clustering/join
-# between nodes isn't wired up yet — see var.node_count in variables.tf.
+# Ansible/SSH target per node (terraform/inventory.tf) instead of a raw IP.
 resource "cloudflare_dns_record" "cluster_node" {
   count   = var.node_count
   zone_id = var.cloudflare_zones["zetatwo_dev"]
@@ -22,34 +17,34 @@ resource "cloudflare_dns_record" "aoe2_groups" {
   zone_id = var.cloudflare_zones["zetatwo_com"]
   name    = "aoe2-groups"
   type    = "A"
-  content = hcloud_server.cluster_node[0].ipv4_address # node1, until multi-node ingress/routing exists
+  content = hcloud_server.cluster_node[0].ipv4_address # node1 only, no multi-node routing yet
   ttl     = 1
-  proxied = false # must stay un-proxied so cert-manager's Let's Encrypt HTTP-01 challenge reaches Traefik directly
+  proxied = false # un-proxied: HTTP-01 must reach Traefik directly
 }
 
 resource "cloudflare_dns_record" "grafana" {
-  zone_id = var.cloudflare_zones["zetatwo_dev"] # admin/management surface, not a hobby app — see README's Domains section
+  zone_id = var.cloudflare_zones["zetatwo_dev"] # admin surface — docs/cluster-setup.md
   name    = "grafana"
   type    = "A"
-  content = hcloud_server.cluster_node[0].ipv4_address # node1, until multi-node ingress/routing exists
+  content = hcloud_server.cluster_node[0].ipv4_address # node1 only, no multi-node routing yet
   ttl     = 1
-  proxied = false # must stay un-proxied so cert-manager's Let's Encrypt HTTP-01 challenge reaches Traefik directly
+  proxied = false # un-proxied: HTTP-01 must reach Traefik directly
 }
 
 resource "cloudflare_dns_record" "aoe2_groups_staging" {
-  zone_id = var.cloudflare_zones["zetatwo_dev"] # staging surface, gated by the GitHub OAuth forward-auth — see README's Domains section
+  zone_id = var.cloudflare_zones["zetatwo_dev"] # staging, auth-gated — docs/app-setup.md
   name    = "aoe2-groups"
   type    = "A"
-  content = hcloud_server.cluster_node[0].ipv4_address # node1, until multi-node ingress/routing exists
+  content = hcloud_server.cluster_node[0].ipv4_address # node1 only, no multi-node routing yet
   ttl     = 1
-  proxied = false # must stay un-proxied so cert-manager's Let's Encrypt HTTP-01 challenge reaches Traefik directly
+  proxied = false # un-proxied: HTTP-01 must reach Traefik directly
 }
 
 resource "cloudflare_dns_record" "auth" {
-  zone_id = var.cloudflare_zones["zetatwo_dev"] # admin/management surface, not a hobby app — see README's Domains section
+  zone_id = var.cloudflare_zones["zetatwo_dev"] # admin surface — docs/cluster-setup.md
   name    = "auth"
   type    = "A"
-  content = hcloud_server.cluster_node[0].ipv4_address # node1, until multi-node ingress/routing exists
+  content = hcloud_server.cluster_node[0].ipv4_address # node1 only, no multi-node routing yet
   ttl     = 1
-  proxied = false # must stay un-proxied so cert-manager's Let's Encrypt HTTP-01 challenge reaches Traefik directly
+  proxied = false # un-proxied: HTTP-01 must reach Traefik directly
 }

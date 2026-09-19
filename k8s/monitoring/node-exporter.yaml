@@ -1,11 +1,6 @@
-# Standard node_exporter DaemonSet — replaces Vector's own host_metrics
-# source (removed from vector.yaml) as the source of CPU/memory/disk
-# metrics, specifically so the well-known community dashboards (e.g.
-# grafana.com dashboard 1860 "Node Exporter Full", see grafana.yaml) work
-# against real `node_*`-named metrics instead of Vector's differently
-# named `host_*` ones. Vector scrapes this and forwards to VictoriaMetrics
-# (see vector.yaml's node_exporter source) rather than adding a separate
-# scraper (vmagent) just for this one target.
+# Standard node_exporter DaemonSet, not Vector's host_metrics, so the
+# community dashboards (grafana.yaml) work against real `node_*` metrics.
+# Vector scrapes and forwards this (vector.yaml) instead of adding vmagent.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -20,7 +15,5 @@ spec:
         kind: HelmRepository
         name: prometheus-community
   values:
-    # Fixes the Service name to "node-exporter" (reachable at
-    # node-exporter.monitoring.svc.cluster.local:9100) instead of a
-    # chart-generated name.
+    # Service name "node-exporter" (node-exporter.monitoring.svc.cluster.local:9100).
     fullnameOverride: "node-exporter"

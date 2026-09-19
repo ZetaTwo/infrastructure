@@ -24,16 +24,10 @@
     kind: Namespace
     state: present
 
-# The release's install.yaml bundles 7 controllers (source, kustomize, helm,
-# notification, image-reflector, image-automation, source-watcher); we only
-# use the first 4 (no Flux-managed image automation or ArtifactGenerators —
-# see README), so install from the per-component manifests bundle instead
-# and skip the other 3 entirely, rather than installing then deleting them.
-#
-# The raw per-component files (unlike the pre-built install.yaml) don't
-# carry an explicit namespace — they're meant to be composed via `kustomize
-# build` with a namespace transformer. The module's namespace: fills that
-# in for every object in the file that doesn't already have one.
+# install.yaml bundles 7 controllers; we only use 4 (docs/cluster-setup.md),
+# so install from per-component manifests and skip the rest instead of
+# installing then deleting them. These raw files carry no namespace —
+# namespace: below fills it in for every object that lacks one.
 - name: Install core components for Flux {{ flux_version }}
   kubernetes.core.k8s:
     src: "/etc/rancher/k3s/flux-manifests/{{ item }}"

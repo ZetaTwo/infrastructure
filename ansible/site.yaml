@@ -3,9 +3,7 @@
   hosts: all
   become: false
   environment:
-    # Read by the kubernetes.core collection's modules (K8S_AUTH_KUBECONFIG)
-    # so every k8s task talks to the local k3s API without repeating
-    # kubeconfig: on each one. Only exists once the k3s role has run.
+    # Lets kubernetes.core modules skip repeating kubeconfig: per task.
     K8S_AUTH_KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
   roles:

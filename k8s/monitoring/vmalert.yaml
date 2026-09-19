@@ -1,9 +1,5 @@
-# vmalert evaluates metrics-based alerting rules against VictoriaMetrics
-# and fires them to Alertmanager. docs/monitoring.md doesn't name a rule
-# evaluator explicitly ("VictoriaMetrics constantly evaluates rules") but
-# VictoriaMetrics itself only stores metrics — vmalert is the component
-# that actually runs the rule queries. Loki's own ruler (see loki.yaml)
-# covers log-based rules the same way.
+# Evaluates metrics rules against VictoriaMetrics, fires to Alertmanager.
+# VictoriaMetrics only stores metrics; vmalert runs the rule queries.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:

@@ -1,14 +1,10 @@
-# Reusable Traefik ForwardAuth gate — any Ingress in any namespace opts in
-# via:
+# Reusable Traefik ForwardAuth gate — any Ingress opts in via (errors
+# before auth — order matters, forwardAuth short-circuits the chain):
 #   traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-errors@kubernetescrd,auth-oauth2-proxy-auth@kubernetescrd
-# See k8s/monitoring/grafana-ingress.yaml for the reference usage and
-# docs/app-setup.md's "Auth (GitHub OAuth via oauth2-proxy)" section.
+# Reference usage: k8s/monitoring/grafana-ingress.yaml, docs/app-setup.md.
 #
-# Two middlewares are needed together: forwardAuth alone only relays
-# whatever status code oauth2-proxy's /oauth2/auth returns (401 for
-# unauthenticated) — it doesn't turn that into a login redirect. The errors
-# middleware is oauth2-proxy's own documented Traefik recipe for rewriting
-# that 401 into a 302 to its sign-in page.
+# forwardAuth alone only relays oauth2-proxy's 401 — it doesn't redirect.
+# errors rewrites that into a redirect (oauth2-proxy's documented recipe).
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -35,19 +31,12 @@ spec:
     service:
       name: oauth2-proxy
       port: 4180
-    # /oauth2/start (not /oauth2/sign_in) deliberately: oauth2-proxy's
-    # sign_in page template uses host-relative links/form actions
-    # (e.g. action="/oauth2/start"), which break when this middleware
-    # serves that page's content in place of the original host's response —
-    # the browser stays on the protected app's origin (e.g.
-    # grafana.zetatwo.dev), so those relative links resolve against the
-    # wrong host and go nowhere. /oauth2/start instead returns a genuine
-    # 302 with an absolute Location straight to GitHub's OAuth authorize
-    # endpoint, which has no such problem and skips the extra click.
+    # /oauth2/start, not /oauth2/sign_in: sign_in's links are host-relative
+    # and break when served in place on the protected app's origin.
+    # /oauth2/start instead returns a genuine absolute redirect to GitHub.
     query: /oauth2/start?rd={url}
-    # Without this, Traefik forwards oauth2-proxy's sign-in page body but
-    # keeps the original 401/403 status, so browsers show it as an error
-    # page instead of following it as a redirect.
+    # Without this, the response keeps its original 401/403 status, so
+    # browsers show an error page instead of following the redirect.
     statusRewrites:
       "401": 302
       "403": 302

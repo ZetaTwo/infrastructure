@@ -1,6 +1,5 @@
-# Single-node metrics storage — matches this being a single-node cluster.
-# Vector remote-writes host/internal metrics here; Grafana and vmalert both
-# read from it via its Prometheus-compatible HTTP API.
+# Single-node metrics storage. Vector remote-writes here; Grafana and
+# vmalert read via its Prometheus-compatible HTTP API.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -16,8 +15,5 @@ spec:
         name: victoria-metrics
   values:
     server:
-      # Fixes the Service name to "vmsingle" (reachable at
-      # vmsingle.monitoring.svc.cluster.local:8428) instead of a
-      # chart-generated name, so other components can address it by a
-      # stable, predictable DNS name.
+      # Service name "vmsingle" (vmsingle.monitoring.svc.cluster.local:8428).
       fullnameOverride: "vmsingle"

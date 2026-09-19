@@ -1,6 +1,4 @@
-# No forwardAuth middleware attached here — oauth2-proxy's own
-# sign-in/callback endpoints must stay directly reachable, or protecting
-# this Ingress with itself would create a redirect loop.
+# No forwardAuth middleware here — would redirect-loop against itself.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

@@ -1,21 +1,14 @@
-# Runs as a DaemonSet (role: Agent), tailing every pod's logs on the node,
-# scraping node_exporter, and reporting its own internal metrics — per
-# docs/monitoring.md's architecture. Also posts ERROR-level log lines straight
-# to Discord (own throttle, bypassing Alertmanager) since that's the only
-# place the original log text is ever available — see the transforms
-# below. Metrics alerting stays on vmalert → Alertmanager (vmalert.yaml).
+# DaemonSet (role: Agent): tails pod logs, scrapes node_exporter, reports
+# its own metrics. ERROR-level logs also post straight to Discord below,
+# bypassing Alertmanager, since that's the only place the raw log text is
+# available. Metric alerts stay on vmalert -> Alertmanager (vmalert.yaml).
 #
-# customConfig fully replaces the chart's default config (the chart's own
-# docs: "if used, **all** options need to be specified") — this is the
-# stock "Agent" config the chart would otherwise generate (see the vector
-# chart's templates/configmap.yaml), extended with the VRL transform from
-# docs/monitoring.md's vector.yaml snippet and two sinks (Loki, VictoriaMetrics)
-# in place of the default's stdout-only sink.
+# customConfig replaces the chart's default config entirely (chart docs:
+# "if used, all options need to be specified").
 #
-# Since the whole customConfig is rendered through Helm's `tpl`, Vector's
-# own `{{ field }}` event-templating syntax (used in the Loki sink's
-# `labels` below) has to be escaped as {{ "{{ field }}" }} so Helm doesn't
-# try to evaluate it itself.
+# Rendered through Helm's `tpl`, so Vector's own `{{ field }}` templating
+# (used in the Loki sink's `labels` below) must be escaped as
+# {{ "{{ field }}" }} or Helm evaluates it itself.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -31,16 +24,9 @@ spec:
         name: vector
   values:
     role: Agent
-    # Discord posting below needs the same webhook URL Alertmanager uses
-    # (alertmanager-discord Secret, applied by ansible/roles/monitoring),
-    # kept out of this file via Vector's file secrets backend (the
-    # `secret:` block in customConfig) rather than ${VAR} interpolation —
-    # Vector 0.57+ disables interpolation by default specifically to stop
-    # secrets ending up readable in the process environment
-    # (/proc/<pid>/environ), and the file backend is its recommended
-    # replacement. The Secret's `vector-secrets.json` key (a JSON object,
-    # which this backend requires — unlike Alertmanager's plain-text-file
-    # convention) is mounted below and read directly off disk.
+    # Discord webhook URL (same Secret Alertmanager uses) via Vector's file
+    # secrets backend, not ${VAR} interpolation — Vector 0.57+ disables
+    # that by default to keep secrets out of /proc/<pid>/environ.
     extraVolumes:
       - name: discord-webhook-secret
         secret:
@@ -54,8 +40,8 @@ spec:
       api:
         enabled: true
         address: 0.0.0.0:8686
-      # File secrets backend for the Discord webhook URL — resolved once
-      # at config load, referenced below as SECRET[discord.webhook_url].
+      # Resolved once at config load, referenced below as
+      # SECRET[discord.webhook_url].
       secret:
         discord:
           type: file
@@ -63,11 +49,9 @@ spec:
       sources:
         kubernetes_logs:
           type: kubernetes_logs
-        # CPU/memory/disk metrics come from node_exporter (node-exporter.yaml)
-        # rather than Vector's own host_metrics source, so the standard
-        # node_exporter-based Grafana dashboards work unmodified (see
-        # grafana.yaml) — collecting the same data twice under two
-        # different metric names would just waste resources.
+        # node_exporter (node-exporter.yaml), not Vector's own
+        # host_metrics, so stock node_exporter Grafana dashboards work
+        # unmodified.
         node_exporter:
           type: prometheus_scrape
           endpoints:
@@ -86,29 +70,22 @@ spec:
               .message = parsed_json
               .level = parsed_json.level
             }
-        # Log-based alerting (as opposed to the metrics alerts in
-        # vmalert.yaml, which stay on Alertmanager) goes straight from
-        # here to Discord — Alertmanager annotations can only template
-        # against a query result's labels, never the original log text,
-        # so getting the actual error message into the notification means
-        # posting it directly from the one place that ever sees it.
+        # Straight to Discord, bypassing Alertmanager — its annotations can
+        # only template a query result's labels, never the raw log text.
         filter_errors:
           type: filter
           inputs: [parse_app_json]
           condition: '.level == "ERROR"'
-        # Caps it at one Discord post per app per 30s — without this, a
-        # burst of repeated errors from the same app would post one
-        # message per line.
+        # One Discord post per app per 30s, so a burst of repeated errors
+        # doesn't post one message per line.
         throttle_errors:
           type: throttle
           inputs: [filter_errors]
           threshold: 1
           window_secs: 30
           key_field: '{{ "{{ kubernetes.pod_labels.app }}" }}'
-        # Reshapes the event into the exact JSON body Discord's webhook
-        # API expects, as a pre-encoded string in .message — the http
-        # sink below sends that string as-is (codec: text), rather than
-        # wrapping it as one more field inside its own JSON envelope.
+        # Pre-encodes Discord's webhook JSON body as a string; the http
+        # sink below sends it as-is (codec: text).
         format_discord:
           type: remap
           inputs: [throttle_errors]

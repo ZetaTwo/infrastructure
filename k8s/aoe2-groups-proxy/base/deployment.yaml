@@ -18,9 +18,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: aoe2-groups-proxy
-          # Always overridden by each overlay's own images: newTag: (see
-          # overlays/staging and overlays/production) — this literal tag is
-          # never actually deployed.
+          # Always overridden by each overlay's images: newTag:.
           image: ghcr.io/zetatwo/aoe2-groups-proxy:placeholder-overridden-by-overlay
           ports:
             - containerPort: 8080

@@ -1,8 +1,5 @@
-# Strategic-merge patch: env vars are merge-keyed by `name` in the Pod
-# schema, so this overrides just ALLOWED_ORIGINS without repeating the rest
-# of the container spec. Adds a local frontend dev server as an allowed
-# origin alongside the production one, so it can point at staging directly
-# — adjust if a different staging frontend origin is wanted.
+# Strategic-merge patch overriding just ALLOWED_ORIGINS. Adds a local
+# frontend dev server alongside production's origin.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

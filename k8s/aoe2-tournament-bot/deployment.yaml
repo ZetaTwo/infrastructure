@@ -5,9 +5,8 @@ metadata:
   labels:
     app: aoe2-tournament-bot
 spec:
-  # Discord gateway is a single persistent WebSocket — exactly one replica,
-  # never autoscaled. No Service/Ingress: this isn't a web app, nothing
-  # listens for inbound traffic.
+  # Single persistent Discord gateway WebSocket — never autoscaled, no
+  # Service/Ingress.
   replicas: 1
   selector:
     matchLabels:
@@ -21,8 +20,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: aoe2-tournament-bot
-          # REPLACE_ME: set to a real pushed tag (ghcr.io/zetatwo/aoe2-tournament-bot:<git-sha>)
-          # before this manifest is merged to main — CI rewrites this line on every push.
+          # CI rewrites this on release only (docs/app-setup.md).
           image: ghcr.io/zetatwo/aoe2-tournament-bot:v1
           env:
             - name: RUST_LOG

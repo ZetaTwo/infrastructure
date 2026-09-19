@@ -1,10 +1,6 @@
-# Single-binary Loki (no S3/object storage, no separate read/write/backend
-# components) — matches the single-node, resource-conscious scope of
-# docs/monitoring.md. Storage is a local PVC on k3s's default "local-path"
-# StorageClass. Vector pushes logs here (vector.yaml sink) and Grafana
-# queries it. Log-based alerting (ERROR-level lines) is handled directly
-# by Vector posting to Discord (vector.yaml), not by Loki's ruler — see
-# that file's comment for why — so the ruler is unused here.
+# Single-binary Loki, local-path PVC storage. Vector pushes logs here,
+# Grafana queries it. Log-based alerting goes via Vector -> Discord
+# (vector.yaml), not Loki's ruler, so the ruler is unused.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -19,14 +15,12 @@ spec:
         kind: HelmRepository
         name: grafana
   values:
-    # Fixes the Service name to "loki" (reachable at
-    # loki.monitoring.svc.cluster.local:3100) instead of a chart-generated
-    # name.
+    # Service name "loki" (loki.monitoring.svc.cluster.local:3100).
     fullnameOverride: "loki"
     deploymentMode: SingleBinary
     singleBinary:
       replicas: 1
-    # No other deployment mode's components are used.
+    # Other deployment-mode components unused.
     backend:
       replicas: 0
     read:
@@ -47,10 +41,8 @@ spec:
       replicas: 0
     indexGateway:
       replicas: 0
-    # The chart enables two memcached-backed caches by default
-    # (chunksCache wants 8Gi, resultsCache 1Gi) — both oversized for a
-    # single small-VPS node and unnecessary for this scale; disabling them
-    # is what let the singleBinary pod actually get scheduled.
+    # Default memcached caches (chunksCache 8Gi, resultsCache 1Gi) are
+    # oversized for this node — disabling let the pod get scheduled.
     chunksCache:
       enabled: false
     resultsCache:

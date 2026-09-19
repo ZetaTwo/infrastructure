@@ -1,6 +1,4 @@
-# Chart sources for the monitoring stack's HelmReleases below. Flux's
-# source-controller polls each of these and makes the charts available to
-# helm-controller; nothing here talks to a cluster resource directly.
+# Chart sources for this directory's HelmReleases, polled by source-controller.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:

@@ -1,10 +1,6 @@
-# Standalone Alertmanager (not bundled with any other component) — handles
-# metrics alerts from vmalert (vmalert.yaml); log-based alerts go straight
-# from Vector to Discord instead (see vector.yaml for why) and don't pass
-# through here. The Discord webhook URL is never inlined in git: it's
-# mounted from a Secret applied by ansible/roles/monitoring (not
-# Flux-managed), referenced here only as a file path via
-# discord_configs.webhook_url_file.
+# Handles metrics alerts from vmalert; log-based alerts go straight from
+# Vector to Discord instead (vector.yaml). Webhook URL is never inlined —
+# mounted from a Secret (ansible/roles/monitoring) via webhook_url_file.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
