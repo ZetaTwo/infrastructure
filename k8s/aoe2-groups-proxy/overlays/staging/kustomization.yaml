@@ -12,4 +12,4 @@ images:
   # this line on every push to main. Keep it as the only `newTag:`
   # occurrence in this file.
   - name: ghcr.io/zetatwo/aoe2-groups-proxy
-    newTag: db56d1e19304b54f90a6726a0c6b87148206b716
+    newTag: 3459f0d701024690f7f96b6c76ac3de34527f812
