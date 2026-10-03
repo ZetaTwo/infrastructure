@@ -89,6 +89,15 @@ Flux's release bundles 7 controllers; only 4 are installed
 since nothing here uses Flux-managed image automation or
 `ArtifactGenerator`s (see [App setup](app-setup.md#gitops-flux-cd) for why).
 
+notification-controller posts Flux reconciliation errors (failed
+`GitRepository` fetches, Kustomization builds/applies, Helm installs and
+upgrades) directly to the same Discord webhook as Alertmanager
+(`ansible/roles/flux/templates/notifications.yaml.j2`). These alerts don't
+go through Alertmanager, so they aren't grouped, silenced or repeated. The
+`apps` Kustomization has no health checks, so a workload that applies fine
+but then crash-loops won't trigger a Flux alert. The metrics and log alerts
+cover that case.
+
 ## Accessing the cluster
 
 There is no public route to the Kubernetes API (port 6443 is not opened in

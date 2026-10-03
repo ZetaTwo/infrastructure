@@ -97,3 +97,23 @@
     k3s kubectl wait --for=condition=Ready gitrepository/infrastructure
     -n flux-system --timeout=60s
   changed_when: false
+
+- name: Apply Flux Discord webhook secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: flux-discord
+        namespace: flux-system
+      type: Opaque
+      stringData:
+        # Same webhook as Alertmanager/Vector (ansible/roles/monitoring).
+        address: "{{ alertmanager_discord_webhook_url }}"
+  no_log: true
+
+- name: Apply Flux Discord alerting
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'notifications.yaml.j2') | from_yaml_all | list }}"

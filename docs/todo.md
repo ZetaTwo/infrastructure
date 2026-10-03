@@ -7,7 +7,13 @@ Podman+Caddy to k3s, rather than carried over 1:1:
   `127.0.0.1:9090`, and Traefik (running in the pod network) can't reach a
   host-loopback-only service without extra plumbing. Revisit this —
   options include a proper Kubernetes dashboard, or keeping something
-  SSH-tunneled rather than exposed as a public admin surface.
+  SSH-tunneled rather than exposed as a public admin surface. Flux
+  failure alerts to Discord are done (see
+  [Cluster setup](cluster-setup.md#day-to-day-workflow)). Considered and
+  deferred: Headlamp behind oauth2-proxy, Cockpit reached only over an SSH
+  tunnel, `make kubeconfig`/`make tunnel` helpers for local k9s/Freelens,
+  and unattended-upgrades with a `node_reboot_required` textfile metric
+  alerting through vmalert.
 - **App deployment / image updates**: done via Flux CD — see
   [App setup](app-setup.md#gitops-flux-cd). Remaining gaps: the
   CI-commits-back tag bump has no PR gate (a rare race on the commit is

@@ -1,0 +1,35 @@
+# Posts Flux reconciliation errors straight to the shared Discord alert
+# webhook (not via Alertmanager). Applied by Ansible rather than from k8s/
+# so alerting doesn't depend on Flux reconciling the tree it alerts on.
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Provider
+metadata:
+  name: discord
+  namespace: flux-system
+spec:
+  type: discord
+  secretRef:
+    name: flux-discord
+---
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Alert
+metadata:
+  name: flux-errors
+  namespace: flux-system
+spec:
+  providerRef:
+    name: discord
+  eventSeverity: error
+  # eventSources default to the Alert's own namespace; the Helm objects
+  # all live in monitoring (k8s/monitoring).
+  eventSources:
+    - kind: GitRepository
+      name: '*'
+    - kind: Kustomization
+      name: '*'
+    - kind: HelmRepository
+      name: '*'
+      namespace: monitoring
+    - kind: HelmRelease
+      name: '*'
+      namespace: monitoring
