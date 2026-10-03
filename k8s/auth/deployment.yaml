@@ -34,6 +34,8 @@ spec:
             - --upstream=static://202
             - --http-address=0.0.0.0:4180
             - --reverse-proxy=true
+            # Only Traefik (in the k3s pod CIDR) may supply X-Forwarded-*.
+            - --trusted-proxy-ip=10.42.0.0/16
             - --set-xauthrequest=true
             - --pass-access-token=true
             - --pass-authorization-header=true

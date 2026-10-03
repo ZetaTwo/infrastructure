@@ -280,7 +280,9 @@ Grafana's `[auth.proxy]` config does to skip its own login screen. An app
 that doesn't do this still gets its own, separate in-app login (if it has
 one) behind the gate.
 
-1. In Google Cloud Console (any project), open **Google Auth Platform**:
+1. In Google Cloud Console, project `kubernetes-cluster-510516`, open
+   **Google Auth Platform**. The consent screen and client can't be managed
+   by Terraform (Google has no API for them), so they're Console-only:
    - **Branding:** app name, support email, authorized domain `zetatwo.dev`.
    - **Audience:** user type **External** (Internal would only admit your
      own Workspace organization), publishing status **In production**.
