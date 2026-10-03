@@ -6,7 +6,7 @@ k3s cluster, cert-manager, and Flux CD. Flux continuously reconciles
 Kubernetes manifests — one directory per app under `k8s/` in this repo —
 onto the cluster, so deploying an app is a `git push`, not an Ansible run.
 Traefik (bundled with k3s) handles ingress, and cert-manager issues Let's
-Encrypt certificates per app via HTTP-01. A shared GitHub OAuth gate
+Encrypt certificates per app via HTTP-01. A shared Google-login gate
 (`k8s/auth/`) protects non-public surfaces — Grafana and any app's staging
 environment — with a single login, instead of per-app passwords.
 
@@ -20,7 +20,7 @@ environment — with a single login, instead of per-app passwords.
 - **[App setup](docs/app-setup.md)** — the GitOps workflow for deploying
   apps via Flux, the staging (`<app>.zetatwo.dev`) + production
   (`<app>.zeta-two.com`) pattern, per-app secrets bootstrap, and the shared
-  GitHub OAuth (oauth2-proxy) auth gate.
+  Google-login (oauth2-proxy) auth gate with per-app policies.
 - **[Monitoring](docs/monitoring.md)** — the observability stack design
   (Vector, VictoriaMetrics, Loki, Grafana, Alertmanager → Discord).
 - **[Backups](docs/backups.md)** — the general backup strategy for stateful

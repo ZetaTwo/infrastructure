@@ -1,7 +1,7 @@
 # admin.existingSecret below is break-glass only — normal login goes
 # through grafana.ini's [auth.proxy], which trusts the
-# X-Auth-Request-User/-Email headers oauth2-proxy-auth (k8s/auth/
-# middleware.yaml) sets, logging the user in with their GitHub identity.
+# X-Auth-Request-Email header the oauth2-proxy policy Middleware sets
+# (docs/app-setup.md), logging the user in by their Google account email.
 # auth.proxy only activates when that header is present; a request
 # bypassing Traefik+oauth2-proxy (e.g. kubectl port-forward) falls through
 # to the normal login form.
@@ -27,20 +27,19 @@ spec:
     grafana.ini:
       auth.proxy:
         enabled: true
-        header_name: X-Auth-Request-User
-        # GitHub login, not email — oauth2-proxy's GitHub provider never
-        # populates PreferredUsername, only User (=login) and Email.
-        header_property: username
+        # Email, not X-Auth-Request-User — with Google that's the opaque
+        # numeric account ID.
+        header_name: X-Auth-Request-Email
+        header_property: email
         auto_sign_up: true
-        headers: "Email:X-Auth-Request-Email"
         # Cluster pod CIDR — coarse defense in depth. The real security
         # boundary is Traefik's forwardAuth authResponseHeaders, which
         # always overwrites any client-supplied X-Auth-Request-* header.
         whitelist: 10.42.0.0/16
         enable_login_token: true
       users:
-        # Only one GitHub user can ever reach this — give it Admin, not
-        # the chart's default Viewer, on auto-provision.
+        # Only the oauth2-proxy "admin" policy can reach this — give it
+        # Admin, not the chart's default Viewer, on auto-provision.
         auto_assign_org_role: Admin
     # Enabled (chart default is off) so dashboards/settings survive a pod
     # restart.

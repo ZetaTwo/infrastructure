@@ -237,8 +237,8 @@ any specific purpose — any DNS record or app can use any label. Currently:
   (`node1.zetatwo.dev`, `node2.zetatwo.dev`, ... one per `var.node_count`,
   used as the SSH/Ansible target instead of a raw IP, see `terraform/dns.tf`
   and `terraform/inventory.tf`), admin/management surfaces
-  (`grafana.zetatwo.dev` and `auth.zetatwo.dev`, the shared GitHub OAuth
-  gate — see [App setup](app-setup.md#one-time-auth-github-oauth-via-oauth2-proxy-bootstrap)),
+  (`grafana.zetatwo.dev` and `auth.zetatwo.dev`, the shared Google-login
+  gate — see [App setup](app-setup.md#one-time-auth-google-login-via-oauth2-proxy-bootstrap)),
   and staging deploys of apps that have one (e.g. `aoe2-groups.zetatwo.dev`
   — see [App setup](app-setup.md#staging-and-production)), also gated
   behind that same OAuth gate.

@@ -58,8 +58,8 @@ aoe2_groups_proxy_environments:
   - name: staging
     namespace: aoe2-groups-proxy-staging
 
-# GitHub OAuth App (docs/app-setup.md): homepage https://auth.zetatwo.dev,
-# callback https://auth.zetatwo.dev/oauth2/callback.
+# Google OAuth client (docs/app-setup.md): Web application, redirect URI
+# https://auth.zetatwo.dev/oauth2/callback.
 # oauth2_proxy_cookie_secret: 32 random bytes —
 #   python3 -c "import secrets, base64; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())"
 # Client ID isn't secret but is vaulted with the others for consistency.
@@ -91,6 +91,15 @@ oauth2_proxy_cookie_secret: !vault |
           3831616134396233660a636338386163333631633666326564613238633934646263613666353435
           62366232666138643766356530633332646162333039366138346363303538616137323738363838
           3333656563303133656331303363353436653137336331376337
+
+# Per-app auth policies: each becomes Middleware
+# auth-oauth2-proxy-<name>@kubernetescrd (ansible/roles/oauth2_proxy),
+# allowing only the listed Google account emails (comma-separated). Email
+# lists are vaulted — this repo is public:
+#   ansible-vault encrypt_string 'a@example.com,b@example.com' --name oauth2_proxy_admin_emails --vault-password-file .vault_pass
+oauth2_proxy_policies:
+  admin: "{{ oauth2_proxy_admin_emails }}"
+  collaborators: "{{ oauth2_proxy_admin_emails }},{{ oauth2_proxy_collaborator_emails }}"
 
 # GitHub account owning the ghcr.io packages pulled via ghcr-pull-secret.
 # Not secret — ghcr_pull_token below is.

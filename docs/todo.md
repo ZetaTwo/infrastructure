@@ -17,12 +17,6 @@ Podman+Caddy to k3s, rather than carried over 1:1:
   today just creates independent single-node servers. Needs k3s
   server/agent join logic (a shared cluster token, one initial server node)
   before it's actually usable.
-- **Per-app auth allowlists.** `k8s/auth/`'s oauth2-proxy has one global
-  `--github-user` allowlist shared by every app behind it (see
-  [App setup](app-setup.md#one-time-auth-github-oauth-via-oauth2-proxy-bootstrap)).
-  Fine for a single admin; would need a second oauth2-proxy instance (or a
-  policy layer in front) if different apps ever need different allowed
-  users/orgs.
 - **No live storage redundancy for stateful apps.** Every PVC uses
   `local-path` (host-path, tied to the node's local disk) — see
   [Backups](backups.md#storage). Backups are the only recovery mechanism,

@@ -1,5 +1,5 @@
 # Hand-written, not the chart's own ingress templating. Access gated by
-# the shared GitHub OAuth ForwardAuth middlewares (k8s/auth/middleware.yaml,
+# the oauth2-proxy "admin" policy (k8s/auth/middleware.yaml,
 # docs/app-setup.md).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -7,7 +7,7 @@ metadata:
   name: grafana
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-errors@kubernetescrd,auth-oauth2-proxy-auth@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-errors@kubernetescrd,auth-oauth2-proxy-auth-admin@kubernetescrd
 spec:
   ingressClassName: traefik
   tls:

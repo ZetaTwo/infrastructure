@@ -23,3 +23,25 @@
         OAUTH2_PROXY_CLIENT_SECRET: "{{ oauth2_proxy_client_secret }}"
         OAUTH2_PROXY_COOKIE_SECRET: "{{ oauth2_proxy_cookie_secret }}"
   no_log: true
+
+# Union of every policy's emails: who may sign in at all. Per-app
+# narrowing happens in the policy Middlewares below.
+- name: Apply oauth2-proxy authenticated emails
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: oauth2-proxy-emails
+        namespace: auth
+      type: Opaque
+      stringData:
+        authenticated-emails.txt: "{{ oauth2_proxy_policies.values() | map('split', ',') | flatten | map('trim') | unique | join('\n') }}\n"
+  no_log: true
+
+- name: Apply oauth2-proxy per-policy auth middlewares
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'middlewares.yaml.j2') | from_yaml_all | list }}"
+  no_log: true

@@ -107,9 +107,9 @@ split (`k8s/aoe2-groups-proxy/` is the reference) instead of a flat
   always overrides it by repository name, so the literal placeholder is
   never actually deployed.
 - `overlays/staging/` adds its own `namespace.yaml` (`<name>-staging`),
-  `ingress.yaml` (host `<name>.zetatwo.dev`, gated behind the shared GitHub
-  OAuth forward-auth — see
-  [Auth (GitHub OAuth via oauth2-proxy) bootstrap](#one-time-auth-github-oauth-via-oauth2-proxy-bootstrap)
+  `ingress.yaml` (host `<name>.zetatwo.dev`, gated behind the oauth2-proxy
+  `collaborators` policy — see
+  [Auth (Google login via oauth2-proxy) bootstrap](#one-time-auth-google-login-via-oauth2-proxy-bootstrap)
   below), any environment-specific config as a strategic-merge patch (e.g.
   `allowed-origins-patch.yaml`), and an `images: newTag:` CI updates on
   every push to `main`.
@@ -249,32 +249,46 @@ monitoring`):
    `ghcr_pull_token`/`zetatwo_password_hash`), then `make ansible-apply`.
 
 Grafana's admin login here is a break-glass fallback only — normal access
-goes through the shared GitHub OAuth gate (see
-[Auth (GitHub OAuth via oauth2-proxy) bootstrap](#one-time-auth-github-oauth-via-oauth2-proxy-bootstrap)
-below), and Grafana itself logs the user in automatically with their
-GitHub identity via `[auth.proxy]` in `k8s/monitoring/grafana.yaml`
-(trusting the `X-Auth-Request-User`/`-Email` headers oauth2-proxy's
-ForwardAuth Middleware sets), so there's no second, separate login screen.
+goes through the oauth2-proxy `admin` policy (see
+[Auth (Google login via oauth2-proxy) bootstrap](#one-time-auth-google-login-via-oauth2-proxy-bootstrap)
+below), and Grafana itself logs the user in automatically by their
+Google account email via `[auth.proxy]` in `k8s/monitoring/grafana.yaml`
+(trusting the `X-Auth-Request-Email` header oauth2-proxy's ForwardAuth
+Middleware sets), so there's no second, separate login screen.
 
-## One-time Auth (GitHub OAuth via oauth2-proxy) bootstrap
+## One-time Auth (Google login via oauth2-proxy) bootstrap
 
 `k8s/auth/` runs a single `oauth2-proxy` instance as a reusable Traefik
-`ForwardAuth` gate (`ansible/roles/oauth2_proxy` applies its secrets), backed
-by GitHub OAuth and restricted to an allowlist of GitHub usernames. It's the
-cluster's one login for every non-public app — see Grafana's
-`k8s/monitoring/grafana-ingress.yaml` for the reference usage. Important
-distinction: this middleware, by itself, only gates *reachability* to an
-Ingress (can this browser get through at all) — it has no way to tell an
-app who authenticated unless the app is explicitly configured to read the
-`X-Auth-Request-*`/`Authorization` headers the middleware forwards, the way
-Grafana's `[auth.proxy]` config does (see the monitoring secrets bootstrap
-above) to skip its own separate login screen. An app that doesn't do this
-still gets its own, separate in-app login (if it has one) behind the gate.
+`ForwardAuth` gate, backed by Google sign-in (any Google account: Gmail,
+Workspace, or a Google account on another address). It's the cluster's one
+login for every non-public app. Access is keyed on the account's verified
+email and defined as named **policies** (`oauth2_proxy_policies` in
+`ansible/group_vars/all.yml`). Each policy is its own Traefik Middleware,
+`auth-oauth2-proxy-auth-<policy>`, and only lets through the emails it
+lists. Currently `admin` (Grafana) and `collaborators` (staging apps).
 
-1. Create a GitHub OAuth App (**not** a GitHub App): GitHub → Settings →
-   Developer settings → OAuth Apps → New OAuth App.
-   - Homepage URL: `https://auth.zetatwo.dev`
-   - Authorization callback URL: `https://auth.zetatwo.dev/oauth2/callback`
+Because this repo is public, the email lists are vaulted, so
+`ansible/roles/oauth2_proxy` renders the policy Middlewares and the
+`oauth2-proxy-emails` Secret instead of them living under `k8s/`. That
+Secret is the union of all policies, i.e. who may sign in at all.
+
+Important distinction: this middleware, by itself, only gates
+*reachability* to an Ingress (can this browser get through at all). It has
+no way to tell an app who authenticated unless the app reads the
+`X-Auth-Request-*`/`Authorization` headers the middleware forwards, the way
+Grafana's `[auth.proxy]` config does to skip its own login screen. An app
+that doesn't do this still gets its own, separate in-app login (if it has
+one) behind the gate.
+
+1. In Google Cloud Console (any project), open **Google Auth Platform**:
+   - **Branding:** app name, support email, authorized domain `zetatwo.dev`.
+   - **Audience:** user type **External** (Internal would only admit your
+     own Workspace organization), publishing status **In production**.
+     Testing mode caps users at a listed 100 and expires sessions after 7
+     days. Only the basic `openid email profile` scopes are used, so
+     production needs no Google verification.
+   - **Clients → Create client:** type *Web application*, authorized
+     redirect URI `https://auth.zetatwo.dev/oauth2/callback`.
 
    Vault-encrypt the resulting client ID and client secret:
    ```sh
@@ -289,20 +303,29 @@ still gets its own, separate in-app login (if it has one) behind the gate.
      | ansible-vault encrypt_string --stdin-name oauth2_proxy_cookie_secret \
        --vault-password-file ansible/.vault_pass
    ```
-3. Append all three resulting blocks to `ansible/group_vars/all.yml`, then
+3. Vault-encrypt each policy's email list (comma-separated):
+   ```sh
+   ansible-vault encrypt_string 'you@example.com' \
+     --name oauth2_proxy_admin_emails --vault-password-file ansible/.vault_pass
+   ansible-vault encrypt_string 'a@example.com,b@example.com' \
+     --name oauth2_proxy_collaborator_emails --vault-password-file ansible/.vault_pass
+   ```
+4. Put all resulting blocks in `ansible/group_vars/all.yml`, then
    `make ansible-apply`.
-4. Edit `k8s/auth/deployment.yaml`'s `--github-user=...` flag to the
-   allowlisted GitHub username(s) (comma-separated for more than one) — this
-   is plain committed text, not a secret, since nothing under `k8s/` is
-   templated by Ansible. `git push`.
 
-**A future app opts in** by adding one annotation to its Ingress — no new
-Deployment, Secret, or per-app oauth2-proxy config:
+**An app opts in** by adding one annotation to its Ingress, naming the
+policy:
 
 ```yaml
-traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-errors@kubernetescrd,auth-oauth2-proxy-auth@kubernetescrd
+traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-errors@kubernetescrd,auth-oauth2-proxy-auth-<policy>@kubernetescrd
 ```
 
-Restricting different apps to different GitHub users/orgs isn't supported
-yet — one oauth2-proxy instance has one global allowlist; deferred until
-actually needed (see [TODOs](todo.md)).
+**Adding a collaborator** means re-encrypting their policy's email list and
+running `make ansible-apply`. No push is needed. **A new policy** is one
+more entry in `oauth2_proxy_policies` (plus its vaulted list). Removing a
+policy doesn't delete its Middleware, so delete that by hand.
+
+A signed-in user who isn't on an app's policy gets a plain 403. The errors
+middleware deliberately only redirects 401s to sign-in, otherwise that 403
+would loop. A Workspace account can also be refused by Google itself if its
+organization's admin restricts third-party app access.

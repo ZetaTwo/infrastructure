@@ -1,0 +1,24 @@
+# One Traefik ForwardAuth gate per access policy (oauth2_proxy_policies in
+# group_vars/all.yml). An Ingress opts in with (errors before auth — order
+# matters, forwardAuth short-circuits the chain):
+#   traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-errors@kubernetescrd,auth-oauth2-proxy-auth-<policy>@kubernetescrd
+# Rendered by Ansible, not committed under k8s/, so the email lists stay
+# vaulted. oauth2-proxy answers 403 for a signed-in user not on the list.
+{% for name, emails in oauth2_proxy_policies.items() %}
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: oauth2-proxy-auth-{{ name }}
+  namespace: auth
+spec:
+  forwardAuth:
+    address: "http://oauth2-proxy.auth.svc.cluster.local:4180/oauth2/auth?allowed_emails={{ emails.split(',') | map('trim') | unique | join(',') | urlencode }}"
+    trustForwardHeader: true
+    authResponseHeaders:
+      - X-Auth-Request-User
+      - X-Auth-Request-Email
+      - X-Auth-Request-Preferred-Username
+      - X-Auth-Request-Access-Token
+      - Authorization
+{% endfor %}
