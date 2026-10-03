@@ -82,6 +82,14 @@ way. Bumping any of these versions in `group_vars/all.yml` and re-running
 `make ansible-apply` performs a controlled upgrade; re-running with no
 version change is a no-op.
 
+`ansible/roles/unattended_upgrades` keeps the host OS patched: Ubuntu
+security updates install daily, and automatic reboots are off. When an
+upgrade needs a reboot, a systemd timer from
+`ansible/roles/reboot_required_metric` writes `node_reboot_required` as a
+node-exporter textfile metric. vmalert's `RebootRequired` rule then alerts
+to Discord, repeating every 3 hours until you reboot
+(`ssh root@node1.zetatwo.dev reboot`).
+
 Flux's release bundles 7 controllers; only 4 are installed
 (`source-controller`, `kustomize-controller`, `helm-controller`,
 `notification-controller`) — the other 3 (`image-reflector-controller`,

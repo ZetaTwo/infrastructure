@@ -54,3 +54,12 @@ spec:
                     severity: warning
                   annotations:
                     summary: "Node disk usage above 90%"
+                - alert: RebootRequired
+                  # Written by ansible/roles/reboot_required_metric; repeats
+                  # every Alertmanager repeat_interval until rebooted.
+                  expr: node_reboot_required > 0
+                  for: 10m
+                  labels:
+                    severity: warning
+                  annotations:
+                    summary: "Node needs a reboot after package upgrades"

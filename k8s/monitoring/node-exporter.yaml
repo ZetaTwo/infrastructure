@@ -17,3 +17,7 @@ spec:
   values:
     # Service name "node-exporter" (node-exporter.monitoring.svc.cluster.local:9100).
     fullnameOverride: "node-exporter"
+    # Host / is already mounted at /host/root; reads *.prom files written
+    # by ansible/roles/reboot_required_metric (node_reboot_required).
+    extraArgs:
+      - --collector.textfile.directory=/host/root/var/lib/node_exporter/textfile

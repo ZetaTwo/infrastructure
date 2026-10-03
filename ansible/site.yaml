@@ -9,6 +9,8 @@
   roles:
     - users
     - sshd
+    - unattended_upgrades
+    - reboot_required_metric
     - k3s
     - flux
     - ghcr_pull_secret

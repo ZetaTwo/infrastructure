@@ -1,0 +1,23 @@
+---
+# Ubuntu's defaults already do this; pinned here so it's explicit.
+- name: Install unattended-upgrades
+  ansible.builtin.apt:
+    name: unattended-upgrades
+    state: present
+
+- name: Enable daily package list refresh and unattended upgrades
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+    mode: '0644'
+
+# Reboots stay manual; a pending one alerts via node_reboot_required
+# (ansible/roles/reboot_required_metric).
+- name: Disable automatic reboots
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/52unattended-upgrades-local
+    content: |
+      Unattended-Upgrade::Automatic-Reboot "false";
+    mode: '0644'

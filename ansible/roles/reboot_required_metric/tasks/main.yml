@@ -1,0 +1,52 @@
+---
+# node_reboot_required textfile metric for node-exporter; vmalert's
+# RebootRequired rule (k8s/monitoring/vmalert.yaml) alerts on it.
+- name: Create node_exporter textfile directory
+  ansible.builtin.file:
+    path: /var/lib/node_exporter/textfile
+    state: directory
+    mode: '0755'
+
+- name: Install reboot-required metric script
+  ansible.builtin.copy:
+    src: reboot-required-metric.sh
+    dest: /usr/local/bin/reboot-required-metric
+    mode: '0755'
+
+- name: Install reboot-required metric service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/reboot-required-metric.service
+    content: |
+      [Unit]
+      Description=Write node_reboot_required textfile metric
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/reboot-required-metric
+    mode: '0644'
+  notify: Reload systemd
+
+- name: Install reboot-required metric timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/reboot-required-metric.timer
+    content: |
+      [Unit]
+      Description=Refresh node_reboot_required textfile metric
+
+      [Timer]
+      OnBootSec=1min
+      OnUnitActiveSec=15min
+
+      [Install]
+      WantedBy=timers.target
+    mode: '0644'
+  notify: Reload systemd
+
+- name: Flush handlers so systemd sees the new units
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable reboot-required metric timer
+  ansible.builtin.systemd:
+    name: reboot-required-metric.timer
+    enabled: true
+    state: started
