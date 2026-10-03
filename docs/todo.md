@@ -3,14 +3,6 @@
 A few things were deliberately dropped or deferred in the move from
 Podman+Caddy to k3s, rather than carried over 1:1:
 
-- **App deployment / image updates**: done via Flux CD — see
-  [App setup](app-setup.md#gitops-flux-cd). Remaining gaps: the
-  CI-commits-back tag bump has no PR gate (a rare race on the commit is
-  possible, mitigated with a rebase-retry); and Flux's
-  image-automation-controllers were deliberately skipped in favor of that
-  CI-side commit, worth revisiting if the cross-repo write PAT
-  (`INFRA_REPO_PAT` in each app's CI) becomes a bigger rotation burden than
-  running 2 more controllers would be.
 - **Multi-node clustering.** `var.node_count` (`terraform/variables.tf`)
   scaffolds multiple node servers and DNS records (`node1`, `node2`, ...),
   but nodes don't join each other as a k3s cluster yet — bumping it above 1

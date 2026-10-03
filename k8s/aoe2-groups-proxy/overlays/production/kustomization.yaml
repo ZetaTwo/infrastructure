@@ -6,7 +6,7 @@ resources:
   - namespace.yaml
   - ingress.yaml
 images:
-  # CI's deploy-production job rewrites this on release only. Keep it the
-  # only `newTag:` in this file.
+  # Set by the deploy workflow to the newest release tag (deploy-targets.toml).
+  # Keep this the only newTag line in this file.
   - name: ghcr.io/zetatwo/aoe2-groups-proxy
     newTag: v1

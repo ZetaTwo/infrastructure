@@ -78,23 +78,50 @@ needed. Note that GitHub package visibility is one-way — once a package is
 made public it can't be made private again — so `aoe2-groups-proxy` stays
 private and pulls via this secret rather than being flipped public.
 
-Image updates: CI (in the app's own repo) builds and pushes an image, then
-commits an update to the image tag and pushes to `main`. Flux is **not**
-running its image-automation-controllers (would add 2 more controllers and
-require its deploy key to be read-write instead of read-only) — the CI job
-in the app's own repo owns the tag bump instead. There are two patterns in
-use, depending on whether the app has a staging tier (see
-[Staging and production](#staging-and-production) below for why some apps
-don't):
+Image updates: the app's own CI only builds and pushes images. It then
+triggers this repo's `deploy` workflow (`.github/workflows/deploy.yml`),
+which pins every target in `deploy-targets.toml` to its newest ghcr.io tag
+and commits any change to `main` with its own `GITHUB_TOKEN`. Flux rolls
+that commit out. App repos never write to this repo. Their only credential
+is a GitHub App that can start workflows here (Actions: write) but can't
+push code. The trigger carries no data: every run recomputes all targets,
+so runs that GitHub coalesces in the workflow's concurrency group lose
+nothing, and there's no race between apps.
 
-- **Single-environment apps** (e.g. `k8s/aoe2-tournament-bot/`): CI commits
-  a tag bump straight to `deployment.yaml`'s `image:` line on every push to
-  `main` — see `aoe2-tournament-bot`'s `.github/workflows/ci.yml` for the
-  reference implementation.
-- **Staging/production apps** (e.g. `k8s/aoe2-groups-proxy/`): CI bumps the
-  relevant overlay's kustomize `images: newTag:` line instead of a
-  `deployment.yaml` image string directly — see
-  [Staging and production](#staging-and-production) below.
+Tag policies (per target in `deploy-targets.toml`):
+
+- `release`: highest `vX[.Y[.Z]]` tag. The app's release job creates it by
+  retagging an already-tested image (see
+  [Staging and production](#staging-and-production) below).
+- `main`: newest `main-<unix epoch>-<sha>` tag, pushed alongside `:<sha>`
+  on every push to `main`. Used for staging.
+
+The app-side CI step, after pushing the image:
+
+```yaml
+- uses: ZetaTwo/infrastructure/.github/actions/trigger-deploy@main
+  with:
+    client-id: ${{ secrets.DEPLOY_APP_CLIENT_ID }}
+    private-key: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
+```
+
+**Adding an app** to this flow takes three steps:
+1. Add a `[[target]]` per environment to `deploy-targets.toml`. The target
+   file needs exactly one `newTag:` line (kustomize overlay) or one
+   `image: <image>:<tag>` line.
+2. In the package's settings on GitHub (Manage Actions access), give
+   `ZetaTwo/infrastructure` Read access, so the workflow can list its tags.
+3. Add the two `DEPLOY_APP_*` secrets to the app repo.
+
+**Rolling back** means setting `hold = true` on the target and editing its
+tag by hand. Remove `hold` to resume automatic updates.
+
+One-time GitHub App setup: GitHub → Settings → Developer settings → GitHub
+Apps → New GitHub App. Turn the webhook off. Give it one repository
+permission, **Actions: Read and write**, and install it on
+`ZetaTwo/infrastructure` only. Its client ID and a generated private key
+become each app repo's `DEPLOY_APP_CLIENT_ID` / `DEPLOY_APP_PRIVATE_KEY`
+secrets.
 
 ## Staging and production
 
@@ -111,11 +138,11 @@ split (`k8s/aoe2-groups-proxy/` is the reference) instead of a flat
   `collaborators` policy — see
   [Auth (Google login via oauth2-proxy) bootstrap](#one-time-auth-google-login-via-oauth2-proxy-bootstrap)
   below), any environment-specific config as a strategic-merge patch (e.g.
-  `allowed-origins-patch.yaml`), and an `images: newTag:` CI updates on
-  every push to `main`.
+  `allowed-origins-patch.yaml`), and an `images: newTag:` the deploy
+  workflow updates after every push to the app's `main`.
 - `overlays/production/` mirrors it with the app's real namespace, host
   `<name>.zeta-two.com` (public, no auth middleware), and an `images:
-  newTag:` CI updates **only** when a GitHub Release is published.
+  newTag:` the deploy workflow updates **only** when a release tag appears.
 - Root `k8s/kustomization.yaml` lists both overlays as separate resources
   — they're two permanently co-resident Deployments, not templated
   variants of one.

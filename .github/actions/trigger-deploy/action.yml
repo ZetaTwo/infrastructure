@@ -1,0 +1,32 @@
+# Used by app repos after pushing an image:
+#   - uses: ZetaTwo/infrastructure/.github/actions/trigger-deploy@main
+#     with:
+#       client-id: ${{ secrets.DEPLOY_APP_CLIENT_ID }}
+#       private-key: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
+# The GitHub App is installed on this repo only, with Actions: write — it can
+# start the deploy workflow but not push code.
+name: Trigger infrastructure deploy
+description: Starts ZetaTwo/infrastructure's deploy workflow, which picks up new image tags.
+inputs:
+  client-id:
+    description: Deploy-trigger GitHub App client ID
+    required: true
+  private-key:
+    description: Deploy-trigger GitHub App private key
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/create-github-app-token@v3
+      id: token
+      with:
+        client-id: ${{ inputs.client-id }}
+        private-key: ${{ inputs.private-key }}
+        owner: ZetaTwo
+        repositories: infrastructure
+        permission-actions: write
+    - name: Start deploy workflow
+      shell: bash
+      env:
+        GH_TOKEN: ${{ steps.token.outputs.token }}
+      run: gh workflow run deploy.yml --repo ZetaTwo/infrastructure --ref main

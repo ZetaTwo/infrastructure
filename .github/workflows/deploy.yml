@@ -1,0 +1,53 @@
+# Pins deploy-targets.toml's targets to their newest ghcr.io tags and
+# commits any change; Flux then rolls it out. Triggered by app repos via
+# .github/actions/trigger-deploy (or by hand). Every run recomputes all
+# targets, so GitHub coalescing queued runs in the concurrency group loses
+# nothing.
+name: deploy
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  # Each ghcr package must grant this repo read access (docs/app-setup.md).
+  packages: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Resolve image tags
+        id: resolve
+        env:
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_CHANGES_FILE: ${{ runner.temp }}/changes.txt
+        run: python3 .github/scripts/resolve-deploy-tags.py
+
+      # !cancelled(): still ship the targets that resolved even if another
+      # one failed (the job still ends red).
+      - name: Commit and push
+        if: ${{ !cancelled() }}
+        env:
+          CHANGES_FILE: ${{ runner.temp }}/changes.txt
+        run: |
+          git diff --quiet && { echo "Nothing to deploy"; exit 0; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: deploy $(paste -sd ';' "$CHANGES_FILE" | sed 's/;/; /g')" \
+            -m "$(cat "$CHANGES_FILE")"
+          # Only races with human pushes, which never touch these lines.
+          for attempt in 1 2 3 4 5; do
+            git push origin HEAD:main && exit 0
+            git pull --rebase origin main
+          done
+          exit 1

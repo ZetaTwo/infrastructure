@@ -8,7 +8,7 @@ resources:
 patches:
   - path: allowed-origins-patch.yaml
 images:
-  # CI's deploy-staging job rewrites this on every push to main. Keep it
-  # the only `newTag:` in this file.
+  # Set by the deploy workflow to the newest main-* tag (deploy-targets.toml).
+  # Keep this the only newTag line in this file.
   - name: ghcr.io/zetatwo/aoe2-groups-proxy
     newTag: 3459f0d701024690f7f96b6c76ac3de34527f812

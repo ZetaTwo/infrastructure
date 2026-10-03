@@ -1,0 +1,25 @@
+# Image tags the deploy workflow (.github/workflows/deploy.yml) keeps up to
+# date. Each run resolves every target's tag from ghcr.io and commits any
+# change; app repos only trigger it (.github/actions/trigger-deploy).
+#
+# policy = "release": highest vX[.Y[.Z]] tag (cut by the app's release job).
+# policy = "main":    newest main-<unix epoch>-<sha> tag (every push to main).
+# hold = true:        leave this target alone (manual pin / rollback).
+
+[[target]]
+name = "aoe2-groups-proxy/production"
+file = "k8s/aoe2-groups-proxy/overlays/production/kustomization.yaml"
+image = "ghcr.io/zetatwo/aoe2-groups-proxy"
+policy = "release"
+
+[[target]]
+name = "aoe2-groups-proxy/staging"
+file = "k8s/aoe2-groups-proxy/overlays/staging/kustomization.yaml"
+image = "ghcr.io/zetatwo/aoe2-groups-proxy"
+policy = "main"
+
+[[target]]
+name = "aoe2-tournament-bot/production"
+file = "k8s/aoe2-tournament-bot/deployment.yaml"
+image = "ghcr.io/zetatwo/aoe2-tournament-bot"
+policy = "release"

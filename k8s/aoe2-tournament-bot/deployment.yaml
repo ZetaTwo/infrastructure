@@ -20,7 +20,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: aoe2-tournament-bot
-          # CI rewrites this on release only (docs/app-setup.md).
+          # Set by the deploy workflow to the newest release tag (deploy-targets.toml).
           image: ghcr.io/zetatwo/aoe2-tournament-bot:v1
           env:
             - name: RUST_LOG
