@@ -10,6 +10,6 @@ images:
   # Set by the deploy workflow to the newest main-* tags (deploy-targets.toml).
   # Each newTag must stay directly under its own `- name:` line.
   - name: ghcr.io/zetatwo/canst-backend
-    newTag: placeholder-until-first-deploy
+    newTag: main-1791131966-1e48f39c0fb88a04e6bb4bc2ae1739570d36f633
   - name: ghcr.io/zetatwo/canst-frontend
-    newTag: placeholder-until-first-deploy
+    newTag: main-1791131966-1e48f39c0fb88a04e6bb4bc2ae1739570d36f633
