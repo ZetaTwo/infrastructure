@@ -1,0 +1,52 @@
+# docs/backups.md's template, for a database on the shared Postgres. PGHOST/
+# PGUSER/PGDATABASE/PGPASSWORD come from canst-staging-backup-secrets
+# (ansible/roles/backups), so pg_dump runs as the app's own role.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: canst-backup
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            # Names the app in Vector's Discord error alerts.
+            app: canst-backup
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: backup
+              image: alpine:3.22
+              envFrom:
+                - secretRef:
+                    name: canst-staging-backup-secrets
+              env:
+                - name: RESTIC_REPOSITORY
+                  value: s3:https://fsn1.your-objectstorage.com/zetatwo-infra-backups/canst-staging
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  # Matches Vector's parse_app_json transform (vector.yaml)
+                  # so a failure posts to Discord through the existing
+                  # log-based alerting path.
+                  trap 'echo "{\"level\":\"ERROR\",\"message\":\"canst-staging backup failed\"}"' ERR
+
+                  apk add --no-cache postgresql16-client restic >/dev/null
+
+                  # Initializes the restic repository on the very first run.
+                  restic cat config >/dev/null 2>&1 || restic init
+
+                  pg_dump -Fc \
+                    | restic backup --stdin --stdin-filename dump.dump --host canst-staging
+
+                  restic forget --prune \
+                    --keep-daily 14 --keep-weekly 8 --keep-monthly 6
+                  restic check

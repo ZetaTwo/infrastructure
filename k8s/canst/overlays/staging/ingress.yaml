@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: canst
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-errors@kubernetescrd,auth-oauth2-proxy-auth-collaborators@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - canst.zetatwo.dev
+      secretName: canst-staging-tls
+  rules:
+    - host: canst.zetatwo.dev
+      http:
+        paths:
+          # Single origin: the SPA and its API share a host, so canst's auth
+          # cookies stay same-site with no CORS.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: canst-backend
+                port:
+                  number: 3000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: canst-frontend
+                port:
+                  number: 80

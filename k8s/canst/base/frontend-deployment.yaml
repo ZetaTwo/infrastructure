@@ -1,0 +1,39 @@
+# Caddy serving the built SPA only; the Ingress routes /api to canst-backend.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: canst-frontend
+  labels:
+    app: canst-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: canst-frontend
+  template:
+    metadata:
+      labels:
+        app: canst-frontend
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      containers:
+        - name: canst-frontend
+          # Always overridden by each overlay's images: newTag:.
+          image: ghcr.io/zetatwo/canst-frontend:placeholder-overridden-by-overlay
+          ports:
+            - containerPort: 80
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi

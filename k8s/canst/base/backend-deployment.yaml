@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: canst-backend
+  labels:
+    app: canst-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: canst-backend
+  template:
+    metadata:
+      labels:
+        app: canst-backend
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      # Applies pending migrations before the server starts, on every rollout.
+      # If it fails the pod never becomes Ready and the old pod keeps serving.
+      initContainers:
+        - name: migrate
+          # Always overridden by each overlay's images: newTag:.
+          image: ghcr.io/zetatwo/canst-backend:placeholder-overridden-by-overlay
+          args: ["--config", "/etc/canst/config.toml", "migrate"]
+          env:
+            - name: RUST_LOG
+              value: info
+          volumeMounts:
+            - name: config
+              mountPath: /etc/canst
+              readOnly: true
+      containers:
+        - name: canst-backend
+          image: ghcr.io/zetatwo/canst-backend:placeholder-overridden-by-overlay
+          args: ["--config", "/etc/canst/config.toml"]
+          ports:
+            - containerPort: 3000
+          env:
+            - name: RUST_LOG
+              value: info
+          volumeMounts:
+            - name: config
+              mountPath: /etc/canst
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 3000
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 3000
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+      volumes:
+        # config.toml (database_url, paseto_key, ...), rendered by
+        # ansible/roles/canst — never in git.
+        - name: config
+          secret:
+            secretName: canst-config

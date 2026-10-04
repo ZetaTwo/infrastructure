@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: canst-staging
+resources:
+  - ../../base
+  - namespace.yaml
+  - ingress.yaml
+  - backup-cronjob.yaml
+images:
+  # Set by the deploy workflow to the newest main-* tags (deploy-targets.toml).
+  # Each newTag must stay directly under its own `- name:` line.
+  - name: ghcr.io/zetatwo/canst-backend
+    newTag: placeholder-until-first-deploy
+  - name: ghcr.io/zetatwo/canst-frontend
+    newTag: placeholder-until-first-deploy
