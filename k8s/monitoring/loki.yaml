@@ -53,7 +53,30 @@ spec:
         replication_factor: 1
       storage:
         type: filesystem
-      useTestSchema: true
+      # Exactly what the chart's useTestSchema rendered (verified against the
+      # live config before switching), so existing data stays readable. A
+      # future schema change adds a new entry with a later `from:` date;
+      # never edit this one.
+      schemaConfig:
+        configs:
+          - from: "2024-04-01"
+            store: tsdb
+            object_store: filesystem
+            schema: v13
+            index:
+              prefix: index_
+              period: 24h
+      # Deep-merged with the chart's own limits_config defaults. local-path
+      # doesn't enforce the PVC's size, so retention is the only cap on how
+      # much of the node's root disk logs can use. 30d matches
+      # VictoriaMetrics' default metrics retention.
+      limits_config:
+        retention_period: 30d
+      # The single binary runs the compactor, which is what actually deletes
+      # chunks past retention_period.
+      compactor:
+        retention_enabled: true
+        delete_request_store: filesystem
     gateway:
       enabled: false
     test:
