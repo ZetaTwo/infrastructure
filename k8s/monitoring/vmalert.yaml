@@ -63,3 +63,63 @@ spec:
                     severity: warning
                   annotations:
                     summary: "Node needs a reboot after package upgrades"
+            # Kubernetes object state from kube-state-metrics.yaml. Catches what
+            # log-based alerting (vector.yaml) can't: pods that crash before
+            # logging, never start, and backups that silently stop running.
+            # Rules are written verbatim into vmalert's config (the chart uses
+            # toYaml, not tpl), so {{ $labels.x }} needs no escaping.
+            - name: kubernetes
+              interval: 1m
+              rules:
+                - alert: PodCrashLooping
+                  expr: increase(kube_pod_container_status_restarts_total[15m]) > 3
+                  labels:
+                    severity: warning
+                  annotations:
+                    summary: "{{ $labels.namespace }}/{{ $labels.pod }} ({{ $labels.container }}) restarted {{ $value | printf \"%.0f\" }} times in 15 min"
+                - alert: ContainerStuckWaiting
+                  # The states a first rollout typically gets stuck in: missing
+                  # Secret, bad image tag or pull secret, crash loop.
+                  expr: max by (namespace, pod, container, reason) (kube_pod_container_status_waiting_reason{reason=~"CrashLoopBackOff|ImagePullBackOff|ErrImagePull|CreateContainerConfigError"}) > 0
+                  for: 10m
+                  labels:
+                    severity: warning
+                  annotations:
+                    summary: "{{ $labels.namespace }}/{{ $labels.pod }} ({{ $labels.container }}) stuck in {{ $labels.reason }} for 10 min"
+                - alert: DeploymentUnavailable
+                  # Also catches a rollout whose migrate initContainer keeps
+                  # failing: the new pod never becomes Ready.
+                  expr: kube_deployment_status_replicas_available < kube_deployment_spec_replicas
+                  for: 15m
+                  labels:
+                    severity: warning
+                  annotations:
+                    summary: "{{ $labels.namespace }}/{{ $labels.deployment }} has fewer available replicas than desired for 15 min"
+                - alert: StatefulSetUnavailable
+                  expr: kube_statefulset_status_replicas_ready < kube_statefulset_replicas
+                  for: 15m
+                  labels:
+                    severity: warning
+                  annotations:
+                    summary: "{{ $labels.namespace }}/{{ $labels.statefulset }} has fewer ready replicas than desired for 15 min"
+                - alert: JobFailed
+                  # Only Jobs started in the last 6h, so an old failed Job kept
+                  # by failedJobsHistoryLimit doesn't alert forever. A failing
+                  # backup also stops BackupStale from resolving.
+                  expr: kube_job_status_failed > 0 and on (namespace, job_name) (time() - kube_job_status_start_time < 6 * 3600)
+                  labels:
+                    severity: warning
+                  annotations:
+                    summary: "Job {{ $labels.namespace }}/{{ $labels.job_name }} failed"
+                - alert: BackupStale
+                  # Nightly backups (docs/backups.md): no success in 26h, or a
+                  # backup CronJob over 26h old that has never succeeded.
+                  expr: |
+                    (time() - kube_cronjob_status_last_successful_time{cronjob=~".*-backup"} > 26 * 3600)
+                    or
+                    ((time() - kube_cronjob_created{cronjob=~".*-backup"} > 26 * 3600)
+                      unless on (namespace, cronjob) kube_cronjob_status_last_successful_time)
+                  labels:
+                    severity: critical
+                  annotations:
+                    summary: "Backup {{ $labels.namespace }}/{{ $labels.cronjob }} has not succeeded in over 26h"

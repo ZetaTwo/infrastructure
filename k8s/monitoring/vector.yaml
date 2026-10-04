@@ -56,6 +56,12 @@ spec:
           type: prometheus_scrape
           endpoints:
             - http://node-exporter.monitoring.svc.cluster.local:9100/metrics
+        # Kubernetes object state (kube-state-metrics.yaml), for vmalert's
+        # `kubernetes` rule group.
+        kube_state_metrics:
+          type: prometheus_scrape
+          endpoints:
+            - http://kube-state-metrics.monitoring.svc.cluster.local:8080/metrics
         internal_metrics:
           type: internal_metrics
       transforms:
@@ -121,11 +127,11 @@ spec:
             namespace: '{{ "{{ kubernetes.pod_namespace }}" }}'
         victoriametrics:
           type: prometheus_remote_write
-          inputs: [node_exporter, internal_metrics]
+          inputs: [node_exporter, kube_state_metrics, internal_metrics]
           endpoint: http://vmsingle.monitoring.svc.cluster.local:8428/api/v1/write
         prom_exporter:
           type: prometheus_exporter
-          inputs: [node_exporter, internal_metrics]
+          inputs: [node_exporter, kube_state_metrics, internal_metrics]
           address: 0.0.0.0:9090
         discord_errors:
           type: http

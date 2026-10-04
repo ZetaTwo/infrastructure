@@ -14,10 +14,11 @@ what an app has to do to fit in (JSON logs, the `app` label), see
 | --- | --- | --- | --- |
 | Vector (DaemonSet) | `vector.yaml` | Tails every pod's logs, scrapes node_exporter, ships logs to Loki and metrics to VictoriaMetrics, posts ERROR logs to Discord | — |
 | node_exporter | `node-exporter.yaml` | Host metrics (`node_*`), plus `*.prom` textfiles such as `node_reboot_required` from `ansible/roles/reboot_required_metric` | `node-exporter.monitoring.svc.cluster.local:9100` |
+| kube-state-metrics | `kube-state-metrics.yaml` | Kubernetes object state (`kube_*`): restarts, waiting reasons, replica counts, Job and CronJob outcomes | `kube-state-metrics.monitoring.svc.cluster.local:8080` |
 | VictoriaMetrics (single) | `victoria-metrics.yaml` | Metrics storage with a Prometheus-compatible API | `vmsingle.monitoring.svc.cluster.local:8428` |
 | vmalert | `vmalert.yaml` | Evaluates metric alert rules, fires to Alertmanager | — |
 | Alertmanager | `alertmanager.yaml` | Groups metric alerts, posts them to Discord | `alertmanager.monitoring.svc.cluster.local:9093` |
-| Loki (single binary) | `loki.yaml` | Log storage, filesystem on a `local-path` PVC | `loki.monitoring.svc.cluster.local:3100` |
+| Loki (single binary) | `loki.yaml` | Log storage, filesystem on a `local-path` PVC, 30-day retention | `loki.monitoring.svc.cluster.local:3100` |
 | Grafana | `grafana.yaml`, `grafana-ingress.yaml` | Dashboards and queries over both stores | `https://grafana.zetatwo.dev` |
 
 Chart versions are pinned in each HelmRelease. Bump them there.
@@ -36,6 +37,10 @@ Everything goes to Loki with three labels:
 - `app`: the pod's `app` label (empty if the pod has none).
 - `level`: the parsed `level` (`INFO`, `ERROR`, ...), empty for non-JSON lines.
 
+Logs are kept for 30 days (`retention_period` in `loki.yaml`, enforced by
+the compactor). This is the only cap on their size, because `local-path`
+volumes don't enforce their requested capacity.
+
 Example queries in Grafana's Explore view (Loki datasource):
 
 ```logql
@@ -46,15 +51,15 @@ Example queries in Grafana's Explore view (Loki datasource):
 
 ## Metrics
 
-Vector scrapes node_exporter and its own internal metrics, and
-remote-writes both to VictoriaMetrics. Grafana ships with the
+Vector scrapes node_exporter, kube-state-metrics and its own internal
+metrics, and remote-writes them to VictoriaMetrics. Grafana ships with the
 "Node Exporter Full" dashboard (grafana.com ID 1860) against the
-VictoriaMetrics datasource.
+VictoriaMetrics datasource. kube-state-metrics only runs the collectors the
+alert rules need (pods, deployments, statefulsets, daemonsets, jobs,
+cronjobs, nodes, namespaces, PVCs).
 
-That's all that is collected today. **App metrics are not scraped** (no
-`/metrics` endpoints are picked up), and there's no kube-state-metrics, so
-Kubernetes object state (restarts, crash loops, failed Jobs) isn't
-available as metrics. See [Limitations](#limitations).
+**App metrics are not scraped**: no app's own `/metrics` endpoint is picked
+up. See [Limitations](#limitations).
 
 ## Alerting
 
@@ -68,21 +73,34 @@ There are two independent paths to the same Discord webhook:
    query result's labels, never the raw log text. Backup CronJobs use this
    path too: on failure they print a JSON `ERROR` line
    ([Backups](backups.md#cronjob-template)).
-2. **Metric alerts (vmalert → Alertmanager → Discord).** The rules in
-   `vmalert.yaml` cover the node only:
+2. **Metric alerts (vmalert → Alertmanager → Discord).** Rules in
+   `vmalert.yaml`, in two groups:
 
-   | Alert | Fires when |
-   | --- | --- |
-   | `HighMemoryUsage` | memory above 90% for 2 min |
-   | `HighCPUUsage` | CPU above 90% for 1 min |
-   | `HighDiskUsage` | any ext4/xfs/btrfs filesystem above 90% for 2 min |
-   | `RebootRequired` | the node needs a reboot after package upgrades, for 10 min |
+   | Group | Alert | Fires when |
+   | --- | --- | --- |
+   | `node` | `HighMemoryUsage` | memory above 90% for 2 min |
+   | `node` | `HighCPUUsage` | CPU above 90% for 1 min |
+   | `node` | `HighDiskUsage` | any ext4/xfs/btrfs filesystem above 90% for 2 min |
+   | `node` | `RebootRequired` | the node needs a reboot after package upgrades, for 10 min |
+   | `kubernetes` | `PodCrashLooping` | a container restarted more than 3 times in 15 min |
+   | `kubernetes` | `ContainerStuckWaiting` | a container in `CrashLoopBackOff`, `ImagePullBackOff`, `ErrImagePull` or `CreateContainerConfigError` for 10 min |
+   | `kubernetes` | `DeploymentUnavailable` | fewer available replicas than desired for 15 min, e.g. a failing `migrate` initContainer |
+   | `kubernetes` | `StatefulSetUnavailable` | fewer ready replicas than desired for 15 min |
+   | `kubernetes` | `JobFailed` | a Job started in the last 6 h has failed |
+   | `kubernetes` | `BackupStale` (critical) | a `*-backup` CronJob hasn't succeeded in 26 h, or is over 26 h old and never has |
 
-   Alertmanager groups by alert name (10 s initial wait, 5 min between
-   updates) and repeats an unresolved alert every 3 hours.
+   `BackupStale` is the safety net for backups: the backup's own `ERROR`
+   log line only fires when the job runs and fails, not when it never
+   runs. Alertmanager groups by alert name (10 s initial wait, 5 min
+   between updates), repeats an unresolved alert every 3 hours, and posts
+   again when it resolves. Messages show the alert's `namespace` or
+   `instance` label, whichever it has.
 
-To add a metric alert, add a rule to the `node` group (or a new group) in
-`vmalert.yaml` and push.
+To add a metric alert, add a rule to a group in `vmalert.yaml` and push.
+Validate the rules first with vmalert's dry run (`vmalert -dryRun
+-rule=<file>`, the rules extracted from the HelmRelease values). The chart
+writes rules with `toYaml`, not `tpl`, so `{{ $labels.x }}` in annotations
+needs no escaping.
 
 ## Access and secrets
 
@@ -100,17 +118,8 @@ because its file secrets backend requires a JSON object. Bootstrap steps:
 
 ## Limitations
 
-- **No app metrics and no Kubernetes state.** A pod stuck in
-  `CrashLoopBackOff` or `ImagePullBackOff`, or a failed Job, alerts only if
-  it happens to log an `ERROR` line first. A crash before logging, or a pod
-  that never starts, is silent. Adding kube-state-metrics (scraped by
-  Vector) plus a few vmalert rules would close this.
-- **Loki has no retention configured.** Logs are kept forever. `local-path`
-  volumes don't enforce their requested size, so they grow on the node's
-  root disk, shared with every other app and the database, until
-  `HighDiskUsage` fires. It also runs with the chart's
-  `useTestSchema: true` instead of an explicit schema config.
-- **Metric alerts have no `app` label**, so the `App:` line in their Discord
-  message is empty. Only log alerts name an app.
+- **No app metrics.** Apps' own `/metrics` endpoints aren't scraped, so
+  there's no request rate, latency or error-rate alerting. App problems
+  surface only through `ERROR` logs or the Kubernetes state rules above.
 - Vector logs a harmless healthcheck failure for the VictoriaMetrics sink
   on every startup ([TODOs](todo.md)).

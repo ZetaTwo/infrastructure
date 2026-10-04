@@ -1,0 +1,40 @@
+# Kubernetes object state as metrics (restarts, waiting reasons, replica
+# counts, Job/CronJob outcomes) — what vmalert's `kubernetes` rules
+# (vmalert.yaml) alert on, so a pod that crashes before logging anything,
+# never starts, or a backup that silently stops running is still noticed.
+# Scraped by Vector (vector.yaml), like node_exporter.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kube-state-metrics
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: kube-state-metrics
+      version: "8.6.0"
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus-community
+  values:
+    # Service name "kube-state-metrics"
+    # (kube-state-metrics.monitoring.svc.cluster.local:8080).
+    fullnameOverride: "kube-state-metrics"
+    # Only the object kinds the alert rules use — fewer series and less
+    # memory than the chart's default of every collector.
+    collectors:
+      - cronjobs
+      - daemonsets
+      - deployments
+      - jobs
+      - namespaces
+      - nodes
+      - persistentvolumeclaims
+      - pods
+      - statefulsets
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 128Mi

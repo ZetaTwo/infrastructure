@@ -33,12 +33,3 @@ Podman+Caddy to k3s, rather than carried over 1:1:
   needs an overlay (`canst.zeta-two.com`, public), a `canst` database and
   environment entry, its own secrets and backup target, and a release job in
   the canst repo that promotes the tested `:<sha>` image.
-- **No alerting on Kubernetes object state.** Crash-looping or never-starting
-  pods and failed Jobs are only noticed if they log an `ERROR` line
-  ([Monitoring](monitoring.md#limitations)). Add kube-state-metrics,
-  scraped by Vector, plus vmalert rules for restarts, unavailable
-  Deployments and failed Jobs.
-- **Loki retention.** No retention period is set and `local-path` doesn't
-  cap volume size, so logs grow on the node's root disk indefinitely. Set
-  `limits_config.retention_period` with the compactor's retention enabled,
-  and replace `useTestSchema: true` with an explicit schema config.

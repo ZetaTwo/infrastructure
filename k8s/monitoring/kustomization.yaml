@@ -7,6 +7,7 @@ resources:
   - vector.yaml
   - victoria-metrics.yaml
   - node-exporter.yaml
+  - kube-state-metrics.yaml
   - vmalert.yaml
   - loki.yaml
   - alertmanager.yaml
