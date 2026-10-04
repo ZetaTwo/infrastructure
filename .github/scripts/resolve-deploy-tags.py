@@ -48,10 +48,17 @@ def pick(tags, policy):
 
 
 def rewrite(path, image, tag):
-    """Returns the old tag, or None if the file holds no single tag line."""
+    """Returns the old tag, or None if the file holds no single tag line.
+
+    Tried in order: an `image: <image>:<tag>` line; the `newTag:` directly
+    under this image's `- name: <image>` entry (overlays with several
+    images); then the file's only `newTag:` line.
+    """
     with open(path) as f:
         text = f.read()
-    for pattern in (rf"^(\s*image: {re.escape(image)}:)(\S+)", r"^(\s*newTag: )(\S+)"):
+    for pattern in (rf"^(\s*image: {re.escape(image)}:)(\S+)",
+                    rf"^([ \t]*- name: {re.escape(image)}[ \t]*\n[ \t]*newTag: )(\S+)",
+                    r"^(\s*newTag: )(\S+)"):
         found = re.findall(pattern, text, re.M)
         if len(found) == 1:
             old = found[0][1]

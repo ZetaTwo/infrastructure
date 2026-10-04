@@ -26,3 +26,11 @@ Podman+Caddy to k3s, rather than carried over 1:1:
   probe doesn't accept that status as healthy. Metrics still flow fine;
   worth a fix (or a Vector config option to relax/skip this healthcheck)
   if the log noise becomes annoying.
+- **No NetworkPolicy around the shared Postgres.** Every pod in the
+  cluster can reach `postgres.postgres.svc.cluster.local:5432`; only
+  per-database passwords and the revoked `CONNECT` keep apps apart. Add a
+  NetworkPolicy admitting just app namespaces that have a database.
+- **canst production.** Only `k8s/canst/overlays/staging/` exists. Production
+  needs an overlay (`canst.zeta-two.com`, public), a `canst` database and
+  environment entry, its own secrets and backup target, and a release job in
+  the canst repo that promotes the tested `:<sha>` image.

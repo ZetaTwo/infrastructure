@@ -108,7 +108,9 @@ The app-side CI step, after pushing the image:
 **Adding an app** to this flow takes three steps:
 1. Add a `[[target]]` per environment to `deploy-targets.toml`. The target
    file needs exactly one `newTag:` line (kustomize overlay) or one
-   `image: <image>:<tag>` line.
+   `image: <image>:<tag>` line. An overlay with several images (e.g.
+   `k8s/canst/overlays/staging/`) backs one target per image, with each
+   image's `newTag:` directly under its own `- name: <image>` line.
 2. In the package's settings on GitHub (Manage Actions access), give
    `ZetaTwo/infrastructure` Read access, so the workflow can list its tags.
 3. Add the two `DEPLOY_APP_*` secrets to the app repo.
@@ -171,6 +173,69 @@ cluster, just consumed by `kubectl kustomize`/`kustomize build`) and Flux's
 own custom resource (`kind: Kustomization`,
 `apiVersion: kustomize.toolkit.fluxcd.io/v1`, a live object in-cluster) are
 unrelated things that happen to share a name.
+
+## Shared Postgres
+
+`k8s/postgres/` runs one Postgres 16 StatefulSet for every app, at
+`postgres.postgres.svc.cluster.local:5432`, on a `local-path` PVC (so
+[Backups](backups.md) are the only recovery mechanism). It's one instance
+rather than one per app to keep memory and upgrade overhead flat as apps
+are added. Each app (and each environment of an app) gets its own role and
+database of the same name. The role owns the database, so the app can run
+its own migrations, and `CONNECT` is revoked from `PUBLIC` so apps can't
+reach each other's databases.
+
+The StatefulSet is Flux-managed. Everything secret is Ansible's
+(`ansible/roles/postgres`): the `postgres-superuser` Secret, and an
+idempotent `psql` run inside `postgres-0` per `postgres_databases` entry
+that creates the role and database if missing and resets the password
+every run, so the vaulted value stays the source of truth.
+
+**An app gets a database** by:
+
+1. Generating and vault-encrypting a password as `<db>_db_password` (same
+   command as the restic password in [Backups](backups.md)) and appending it
+   to `ansible/group_vars/all.yml`.
+2. Adding `{name: <db>, password: "{{ <db>_db_password }}"}` to
+   `postgres_databases`.
+3. Giving the app its connection string from its own Ansible role, e.g. a
+   rendered config file Secret (see `ansible/roles/canst`), never in git.
+4. `make ansible-apply`.
+
+On the very first rollout the StatefulSet must exist before the role runs:
+push `k8s/postgres/`, wait for `postgres-0` to be Ready, then
+`make ansible-apply` (the role waits up to 5 minutes for the pod).
+
+Major-version upgrades are a dump/restore, not an image tag bump.
+
+## One-time canst staging bootstrap
+
+canst (`ZetaTwo/canst`) staging runs at `canst.zetatwo.dev`, gated by the
+`collaborators` policy, from `k8s/canst/` (`base/` plus
+`overlays/staging/`): a backend Deployment whose `migrate` initContainer
+applies pending migrations before each rollout, a Caddy frontend serving
+the built SPA, an Ingress routing `/api` to the backend and everything else
+to the frontend, and a nightly backup CronJob.
+
+Its secrets are already vaulted in `ansible/group_vars/all.yml`
+(`canst_staging_db_password`, `canst_staging_paseto_key`,
+`canst_staging_restic_password`, plus `postgres_superuser_password`).
+`ansible/roles/canst` renders them into a `canst-config` Secret holding
+the backend's `config.toml`. On a fresh setup:
+
+1. Do the [backups bucket bootstrap](cluster-setup.md#one-time-backups-bucket-bootstrap)
+   if it hasn't been done yet.
+2. `make tf-apply` for the `canst` DNS record.
+3. Push `k8s/postgres/` and wait for `postgres-0` to be Ready, then
+   `make ansible-apply`.
+4. Wire up the deploy flow (see [GitOps](#gitops-flux-cd)): give this repo
+   read access to both `canst-backend` and `canst-frontend` packages, and
+   add the `DEPLOY_APP_*` secrets to the canst repo.
+5. Promote the first admin (canst has no bootstrap route by design):
+   ```sh
+   kubectl exec -n postgres postgres-0 -- psql -U postgres -d canst_staging \
+     -c "UPDATE users SET is_admin = true WHERE username = '<name>'"
+   ```
 
 ## One-time aoe2-groups-proxy production secrets bootstrap
 

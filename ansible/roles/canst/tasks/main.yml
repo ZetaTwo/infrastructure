@@ -1,0 +1,30 @@
+---
+# Per-environment loop: each canst_environments entry gets its own namespace +
+# canst-config Secret (config.toml, rendered from templates/config.toml.j2).
+# The database itself comes from ansible/roles/postgres (postgres_databases).
+- name: Ensure canst namespaces exist
+  kubernetes.core.k8s:
+    name: "{{ item.namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: present
+  loop: "{{ canst_environments }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Apply canst config secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: canst-config
+        namespace: "{{ item.namespace }}"
+      type: Opaque
+      stringData:
+        config.toml: "{{ lookup('template', 'config.toml.j2') }}"
+  loop: "{{ canst_environments }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true

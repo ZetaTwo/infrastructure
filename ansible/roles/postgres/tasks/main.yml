@@ -1,0 +1,66 @@
+---
+# The shared Postgres itself (k8s/postgres/) is Flux-managed; this role owns
+# only what can't live in git: the superuser password, and one database + role
+# per postgres_databases entry (docs/app-setup.md#shared-postgres).
+- name: Ensure postgres namespace exists
+  kubernetes.core.k8s:
+    name: postgres
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Apply postgres superuser secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: postgres-superuser
+        namespace: postgres
+      type: Opaque
+      stringData:
+        password: "{{ postgres_superuser_password }}"
+  no_log: true
+
+# Flux creates the StatefulSet from k8s/postgres/ — on a first rollout, push
+# that before running this role (docs/app-setup.md#shared-postgres).
+- name: Wait for postgres to be ready
+  kubernetes.core.k8s_info:
+    kind: Pod
+    name: postgres-0
+    namespace: postgres
+    wait: true
+    wait_condition:
+      type: Ready
+      status: "True"
+    wait_timeout: 300
+
+# Idempotent: creates the role and database only if missing, and (re)sets the
+# role's password every run so the vaulted value stays the source of truth.
+# Each app's role owns its database (so it can run migrations and pg_dump),
+# and CONNECT is revoked from PUBLIC so apps can't reach each other's data.
+- name: Provision app databases
+  kubernetes.core.k8s_exec:
+    namespace: postgres
+    pod: postgres-0
+    container: postgres
+    command: >-
+      sh -c {{ ('psql -v ON_ERROR_STOP=1 -U postgres -d postgres'
+      ~ ' -v name=' ~ (item.name | quote)
+      ~ ' -v pw=' ~ (item.password | quote)
+      ~ " <<'SQL'\n" ~ provision_sql ~ "SQL\n") | quote }}
+  vars:
+    provision_sql: |
+      SELECT format('CREATE ROLE %I LOGIN', :'name')
+        WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'name') \gexec
+      ALTER ROLE :"name" WITH LOGIN PASSWORD :'pw';
+      SELECT format('CREATE DATABASE %I OWNER %I', :'name', :'name')
+        WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = :'name') \gexec
+      REVOKE CONNECT ON DATABASE :"name" FROM PUBLIC;
+  register: postgres_provision
+  changed_when: "'CREATE' in postgres_provision.stdout"
+  loop: "{{ postgres_databases }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true

@@ -20,7 +20,8 @@ environment — with a single login, instead of per-app passwords.
 - **[App setup](docs/app-setup.md)** — the GitOps workflow for deploying
   apps via Flux, the staging (`<app>.zetatwo.dev`) + production
   (`<app>.zeta-two.com`) pattern, per-app secrets bootstrap, and the shared
-  Google-login (oauth2-proxy) auth gate with per-app policies.
+  Google-login (oauth2-proxy) auth gate with per-app policies, and the
+  shared Postgres instance apps get their databases from.
 - **[Monitoring](docs/monitoring.md)** — the observability stack design
   (Vector, VictoriaMetrics, Loki, Grafana, Alertmanager → Discord).
 - **[Backups](docs/backups.md)** — the general backup strategy for stateful

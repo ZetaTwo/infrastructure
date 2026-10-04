@@ -1,0 +1,6 @@
+# Rendered by ansible/roles/canst for the {{ item.name }} environment.
+database_url = "postgres://{{ item.db_name }}:{{ item.db_password | urlencode }}@postgres.postgres.svc.cluster.local/{{ item.db_name }}"
+paseto_key = "{{ item.paseto_key }}"
+cookie_domain = "{{ item.domain }}"
+listen_addr = "0.0.0.0:3000"
+log_format = "json"

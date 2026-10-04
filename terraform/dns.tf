@@ -48,3 +48,12 @@ resource "cloudflare_dns_record" "auth" {
   ttl     = 1
   proxied = false # un-proxied: HTTP-01 must reach Traefik directly
 }
+
+resource "cloudflare_dns_record" "canst_staging" {
+  zone_id = var.cloudflare_zones["zetatwo_dev"] # staging, auth-gated — docs/app-setup.md
+  name    = "canst"
+  type    = "A"
+  content = hcloud_server.cluster_node[0].ipv4_address # node1 only, no multi-node routing yet
+  ttl     = 1
+  proxied = false # un-proxied: HTTP-01 must reach Traefik directly
+}

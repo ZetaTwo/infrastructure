@@ -56,7 +56,11 @@ Wiring: `ansible/roles/backups/tasks/main.yml` loops over `backup_targets`
 (`ansible/group_vars/all.yml`, empty until a real app registers) and
 applies one `<app>-backup-secrets` Secret per entry, containing
 `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (restic reads these natively
-for its S3 backend), and `RESTIC_PASSWORD`.
+for its S3 backend), and `RESTIC_PASSWORD`. An entry with a `postgres:`
+block (a database on the [shared Postgres](app-setup.md#shared-postgres))
+also gets `PGHOST`, `PGUSER`, `PGDATABASE` and `PGPASSWORD`, so a plain
+`pg_dump` connects as the app's own role. That role owns its database, so
+it can dump it, and no superuser credential ever reaches an app namespace.
 
 ## Adding backups for a new stateful app
 
@@ -74,6 +78,9 @@ for its S3 backend), and `RESTIC_PASSWORD`.
      - name: <app>
        namespace: <namespace>
        restic_password: "{{ <app>_restic_password }}"
+       postgres:                          # only for a shared-Postgres database
+         database: <db>                   # its postgres_databases name
+         password: "{{ <db>_db_password }}"
    ```
 3. `make ansible-apply` — creates `<app>-backup-secrets` in the app's
    namespace.
@@ -120,7 +127,12 @@ spec:
 
                   apk add --no-cache postgresql16-client restic >/dev/null
 
-                  pg_dump -h <app>-postgres -U <app> -d <app> -Fc \
+                  # Initializes the restic repository on the very first run.
+                  restic cat config >/dev/null 2>&1 || restic init
+
+                  # Connection details come from the PG* variables in
+                  # <app>-backup-secrets.
+                  pg_dump -Fc \
                     | restic backup --stdin --stdin-filename dump.dump --host <app>
 
                   restic forget --prune \
@@ -128,7 +140,10 @@ spec:
                   restic check
 ```
 
-Adjust the `pg_dump` line (or replace it entirely) for whatever the app's
+Give the pod template a label `app: <app>-backup` (under
+`jobTemplate.spec.template.metadata.labels`), so a failure's Discord alert
+names it. `k8s/canst/overlays/staging/backup-cronjob.yaml` is a working
+example. Adjust the `pg_dump` line (or replace it entirely) for whatever the app's
 own consistent-snapshot command is — the restic/CronJob/Ansible plumbing
 around it stays the same for any future stateful app.
 
@@ -144,6 +159,12 @@ restic snapshots                       # list available backups
 restic dump latest dump.dump > dump.dump
 pg_restore -h <host> -U <user> -d <db> --clean dump.dump
 ```
+
+For a database on the shared Postgres, reach it with
+`kubectl port-forward -n postgres svc/postgres 5432:5432` and restore as
+the app's role (`-h 127.0.0.1 -U <db> -d <db>`). For a drill, restore into
+a scratch database instead (`CREATE DATABASE <db>_restore_test OWNER <db>`
+as the superuser, then drop it afterwards).
 
 Restore procedure is documented but not yet exercised in practice — do a
 real restore drill (into a scratch database, not production) once the

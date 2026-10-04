@@ -1,0 +1,64 @@
+# Shared Postgres for every app (docs/app-setup.md#shared-postgres): one
+# database + role per app/environment, provisioned by ansible/roles/postgres.
+# The superuser password Secret is Ansible-managed too; Flux never sees it.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          # Debian-based (not alpine): includes ICU, which apps' nondeterministic
+          # collations need. Major version bumps need a dump/restore, not just a
+          # tag change.
+          image: postgres:16
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-superuser
+                  key: password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+  # k3s's default local-path StorageClass — no live redundancy, backups are
+  # the only recovery mechanism (docs/backups.md#storage).
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
