@@ -10,6 +10,6 @@ images:
   # Set by the deploy workflow to the newest main-* tags (deploy-targets.toml).
   # Each newTag must stay directly under its own `- name:` line.
   - name: ghcr.io/zetatwo/canst-backend
-    newTag: main-1791132761-2696a9f53c3d7efc438bf554c0eabb5872b91fc1
+    newTag: main-1791133880-7fd6b65b766bc96e53f8dd37ba4b5d680247ee80
   - name: ghcr.io/zetatwo/canst-frontend
-    newTag: main-1791132761-2696a9f53c3d7efc438bf554c0eabb5872b91fc1
+    newTag: main-1791133880-7fd6b65b766bc96e53f8dd37ba4b5d680247ee80
