@@ -23,8 +23,9 @@ environment — with a single login, instead of per-app passwords.
   (`<app>.zetatwo.dev`) + production (`<app>.zeta-two.com`) pattern, the
   shared Postgres, checking and removing a deployment, per-app secrets
   bootstrap, and the shared Google-login (oauth2-proxy) auth gate.
-- **[Monitoring](docs/monitoring.md)** — the observability stack design
-  (Vector, VictoriaMetrics, Loki, Grafana, Alertmanager → Discord).
+- **[Monitoring](docs/monitoring.md)** — the observability stack (Vector,
+  VictoriaMetrics, Loki, Grafana, Alertmanager), how logs and metrics flow,
+  the two alerting paths to Discord, and what isn't monitored yet.
 - **[Backups](docs/backups.md)** — the general backup strategy for stateful
   apps (restic to S3-compatible storage), and how a new app adopts it.
 - **[TODOs / deferred](docs/todo.md)** — known gaps and things deliberately
