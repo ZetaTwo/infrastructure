@@ -14,10 +14,9 @@ Podman+Caddy to k3s, rather than carried over 1:1:
   [Backups](backups.md#storage). Backups are the only recovery mechanism,
   not a layer on top of redundant storage. Revisit (Hetzner CSI + a
   detachable Volume) once multi-node clustering exists.
-- **Backup restore procedure is undrilled.** [Backups](backups.md#restore)
-  documents the restore steps but they haven't been exercised against a
-  real backup yet. Do a real restore drill (into a scratch database) once
-  the first stateful app's backups exist, and periodically after.
+- **Repeat backup restore drills.** First drilled 2026-10-04 on
+  canst-staging ([Backups](backups.md#restore)), but against a database
+  with no user data yet. Repeat periodically, and once real data exists.
 - **Vector's `victoriametrics` sink healthcheck.** Vector logs
   `Healthcheck failed: Unexpected status: 204 No Content` for the
   `prometheus_remote_write` sink (`k8s/monitoring/vector.yaml`) on every

@@ -202,9 +202,12 @@ every run, so the vaulted value stays the source of truth.
    rendered config file Secret (see `ansible/roles/canst`), never in git.
 4. `make ansible-apply`.
 
-On the very first rollout the StatefulSet must exist before the role runs:
-push `k8s/postgres/`, wait for `postgres-0` to be Ready, then
-`make ansible-apply` (the role waits up to 5 minutes for the pod).
+On the very first rollout, push `k8s/postgres/` and then run
+`make ansible-apply` straight away — don't wait for `postgres-0` first.
+The pod can't start until the role has created its `postgres-superuser`
+Secret (until then it sits in `CreateContainerConfigError`, which is
+expected); the role creates the Secret, then waits up to 5 minutes for the
+pod to become Ready before provisioning databases.
 
 Major-version upgrades are a dump/restore, not an image tag bump.
 
@@ -226,8 +229,8 @@ the backend's `config.toml`. On a fresh setup:
 1. Do the [backups bucket bootstrap](cluster-setup.md#one-time-backups-bucket-bootstrap)
    if it hasn't been done yet.
 2. `make tf-apply` for the `canst` DNS record.
-3. Push `k8s/postgres/` and wait for `postgres-0` to be Ready, then
-   `make ansible-apply`.
+3. Push `k8s/postgres/`, then run `make ansible-apply` straight away (see
+   [Shared Postgres](#shared-postgres) for why not to wait for the pod).
 4. Wire up the deploy flow (see [GitOps](#gitops-flux-cd)): give this repo
    read access to both `canst-backend` and `canst-frontend` packages, and
    add the `DEPLOY_APP_*` secrets to the canst repo.

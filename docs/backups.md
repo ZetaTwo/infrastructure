@@ -166,6 +166,8 @@ the app's role (`-h 127.0.0.1 -U <db> -d <db>`). For a drill, restore into
 a scratch database instead (`CREATE DATABASE <db>_restore_test OWNER <db>`
 as the superuser, then drop it afterwards).
 
-Restore procedure is documented but not yet exercised in practice — do a
-real restore drill (into a scratch database, not production) once the
-first backup exists, and periodically after (`docs/todo.md`).
+First drilled 2026-10-04 against canst-staging: `restic dump latest`
+from the bucket, `pg_restore` into a scratch database on the shared
+Postgres, schema/migrations/collation matched the live database. Repeat
+the drill periodically (`docs/todo.md`), ideally once the database holds
+real data.
