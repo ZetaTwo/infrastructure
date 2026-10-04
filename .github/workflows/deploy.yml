@@ -40,14 +40,23 @@ jobs:
         env:
           CHANGES_FILE: ${{ runner.temp }}/changes.txt
         run: |
-          git diff --quiet && { echo "Nothing to deploy"; exit 0; }
+          if git diff --quiet; then
+            echo "Nothing to deploy"
+            echo "Nothing to deploy: every target is already at its resolved tag." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -am "chore: deploy $(paste -sd ';' "$CHANGES_FILE" | sed 's/;/; /g')" \
             -m "$(cat "$CHANGES_FILE")"
           # Only races with human pushes, which never touch these lines.
           for attempt in 1 2 3 4 5; do
-            git push origin HEAD:main && exit 0
+            if git push origin HEAD:main; then
+              sha=$(git rev-parse HEAD)
+              echo "Pushed [\`${sha:0:7}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${sha}) to \`main\`; Flux rolls it out within about a minute." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
             git pull --rebase origin main
           done
+          echo "❌ Push to \`main\` failed after 5 attempts." >> "$GITHUB_STEP_SUMMARY"
           exit 1

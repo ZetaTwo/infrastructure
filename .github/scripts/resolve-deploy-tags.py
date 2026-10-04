@@ -68,35 +68,59 @@ def rewrite(path, image, tag):
     return None
 
 
+def write_summary(rows):
+    """Appends a markdown table of every target's outcome to the job summary."""
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not path:
+        return
+    code = lambda s: f"`{s}`" if s else ""
+    lines = ["### Resolved deploy tags", "",
+             "| Target | Policy | Status | Previous tag | Resolved tag |",
+             "| --- | --- | --- | --- | --- |"]
+    for name, policy, status, old, new in rows:
+        lines.append(f"| {name} | {policy} | {status} | {code(old)} | {code(new)} |")
+    with open(path, "a") as f:
+        f.write("\n".join(lines) + "\n\n")
+
+
 def main():
     with open("deploy-targets.toml", "rb") as f:
         targets = tomllib.load(f)["target"]
-    changes, failed = [], False
+    changes, rows, failed = [], [], False
     for t in targets:
+        row = lambda status, old=None, new=None: rows.append(
+            (t["name"], t["policy"], status, old, new))
         if t.get("hold"):
             print(f"{t['name']}: held, skipping")
+            row("⏸️ held")
             continue
         try:
             tag = pick(list_tags(t["image"]), t["policy"])
         except Exception as e:
             print(f"::error::{t['name']}: listing {t['image']} tags failed: {e}")
+            row("❌ listing tags failed")
             failed = True
             continue
         if tag is None:
             print(f"::warning::{t['name']}: no tag matches policy {t['policy']!r}")
+            row("⚠️ no matching tag")
             continue
         old = rewrite(t["file"], t["image"], tag)
         if old is None:
             print(f"::error::{t['name']}: no single tag line in {t['file']}")
+            row("❌ no single tag line", new=tag)
             failed = True
         elif old != tag:
             changes.append(f"{t['name']}: {old} -> {tag}")
             print(changes[-1])
+            row("🚀 updated", old, tag)
         else:
             print(f"{t['name']}: up to date ({tag})")
+            row("✅ up to date", old, tag)
     if changes and os.environ.get("DEPLOY_CHANGES_FILE"):
         with open(os.environ["DEPLOY_CHANGES_FILE"], "a") as f:
             f.write("\n".join(changes) + "\n")
+    write_summary(rows)
     return 1 if failed else 0
 
 
