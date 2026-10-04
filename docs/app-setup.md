@@ -50,7 +50,9 @@ reference for a web app with a database (`backend/Dockerfile`,
   version for the few seconds both run.
 - **Awareness of the auth gate in staging.** Staging is reachable only
   through Google login (oauth2-proxy). The app's own login, if it has one,
-  works unchanged behind it.
+  works unchanged behind it, provided its API paths are routed past the
+  gate's errors middleware (see
+  [Gated apps with an API](#gated-apps-with-an-api)).
 
 ## New app checklist
 
@@ -557,6 +559,31 @@ policy:
 ```yaml
 traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-errors@kubernetescrd,auth-oauth2-proxy-auth-<policy>@kubernetescrd
 ```
+
+### Gated apps with an API
+
+The errors middleware rewrites **every** 401 that passes through it into
+the sign-in redirect, not only the gate's own: Traefik's errors middleware
+is built for replacing an app's error pages. On a page path that's what
+you want. On an API path it hides the app's own 401s (e.g. "not logged in
+to the app", or an expired app token the client should refresh): the
+browser's `fetch` follows the redirect to `accounts.google.com`, and CORS
+blocks it.
+
+So an app that serves an API under the gate gets two Ingresses on the same
+host. Page paths get both middlewares as above. The API path gets the auth
+middleware only:
+
+```yaml
+traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-auth-<policy>@kubernetescrd
+```
+
+Give only one of the two the `cert-manager.io/cluster-issuer` annotation,
+and have both reference the same TLS secret. Traefik's longer-rule-wins
+priority routes `/api` to the API Ingress. `k8s/canst/overlays/staging/
+ingress.yaml` is the reference. An expired gate session then makes API
+calls return the gate's plain 401 rather than a redirect; reloading the
+page goes through the sign-in as usual.
 
 **Adding a collaborator** means re-encrypting their policy's email list and
 running `make ansible-apply`. No push is needed. **A new policy** is one

@@ -1,3 +1,9 @@
+# Two Ingresses on one host. Traefik's errors middleware rewrites *every*
+# 401 passing through it into the sign-in redirect — including the app's
+# own 401s (e.g. "not logged in to canst"), which an API client must see
+# as-is. So only page paths get the errors middleware; /api gets the auth
+# gate alone and passes the app's responses through untouched.
+# (docs/app-setup.md#gated-apps-with-an-api)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -15,15 +21,6 @@ spec:
     - host: canst.zetatwo.dev
       http:
         paths:
-          # Single origin: the SPA and its API share a host, so canst's auth
-          # cookies stay same-site with no CORS.
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: canst-backend
-                port:
-                  number: 3000
           - path: /
             pathType: Prefix
             backend:
@@ -31,3 +28,32 @@ spec:
                 name: canst-frontend
                 port:
                   number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: canst-api
+  annotations:
+    # Auth only, no errors middleware (see above). No cert-manager
+    # annotation: it reuses the certificate the `canst` Ingress requests.
+    traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-auth-collaborators@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - canst.zetatwo.dev
+      secretName: canst-staging-tls
+  rules:
+    - host: canst.zetatwo.dev
+      http:
+        paths:
+          # Same host as the SPA: single origin, so canst's auth cookies
+          # stay same-site with no CORS. Traefik's longer-rule-wins
+          # priority sends /api here rather than to the `canst` Ingress.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: canst-backend
+                port:
+                  number: 3000
