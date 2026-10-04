@@ -40,16 +40,20 @@
 # role's password every run so the vaulted value stays the source of truth.
 # Each app's role owns its database (so it can run migrations and pg_dump),
 # and CONNECT is revoked from PUBLIC so apps can't reach each other's data.
+#
+# The SQL is piped in base64-encoded: k8s_exec's command is a single string
+# and doesn't carry newlines through intact, so a heredoc doesn't survive.
+# Name and password go in as psql variables, quoted by psql itself (:'pw').
 - name: Provision app databases
   kubernetes.core.k8s_exec:
     namespace: postgres
     pod: postgres-0
     container: postgres
     command: >-
-      sh -c {{ ('psql -v ON_ERROR_STOP=1 -U postgres -d postgres'
+      sh -c {{ ('echo ' ~ (provision_sql | b64encode)
+      ~ ' | base64 -d | psql -v ON_ERROR_STOP=1 -U postgres -d postgres'
       ~ ' -v name=' ~ (item.name | quote)
-      ~ ' -v pw=' ~ (item.password | quote)
-      ~ " <<'SQL'\n" ~ provision_sql ~ "SQL\n") | quote }}
+      ~ ' -v pw=' ~ (item.password | quote)) | quote }}
   vars:
     provision_sql: |
       SELECT format('CREATE ROLE %I LOGIN', :'name')
