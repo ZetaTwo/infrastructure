@@ -17,11 +17,12 @@ environment — with a single login, instead of per-app passwords.
   day-to-day `make tf-apply`/`make ansible-apply` workflow, accessing the
   cluster over SSH, the admin login, and how domains map to Cloudflare
   zones.
-- **[App setup](docs/app-setup.md)** — the GitOps workflow for deploying
-  apps via Flux, the staging (`<app>.zetatwo.dev`) + production
-  (`<app>.zeta-two.com`) pattern, per-app secrets bootstrap, and the shared
-  Google-login (oauth2-proxy) auth gate with per-app policies, and the
-  shared Postgres instance apps get their databases from.
+- **[App setup](docs/app-setup.md)** — everything about deploying apps:
+  what an app must provide (images, logs, health, migrations), the ordered
+  new-app checklist, the GitOps workflow via Flux, the staging
+  (`<app>.zetatwo.dev`) + production (`<app>.zeta-two.com`) pattern, the
+  shared Postgres, checking and removing a deployment, per-app secrets
+  bootstrap, and the shared Google-login (oauth2-proxy) auth gate.
 - **[Monitoring](docs/monitoring.md)** — the observability stack design
   (Vector, VictoriaMetrics, Loki, Grafana, Alertmanager → Discord).
 - **[Backups](docs/backups.md)** — the general backup strategy for stateful

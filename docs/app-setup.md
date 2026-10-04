@@ -1,10 +1,88 @@
 # App setup
 
-Deploying and managing apps on an already-set-up cluster: GitOps, the
-staging/production pattern, per-app secrets bootstrap, and the shared auth
-gate. For provisioning the cluster itself, see
-[Cluster setup](cluster-setup.md). If the app is stateful (has a PVC worth
-losing sleep over), see [Backups](backups.md) too.
+Deploying and managing apps on an already-set-up cluster: what an app must
+provide, the end-to-end checklist, GitOps, the staging/production pattern,
+the shared Postgres, per-app secrets bootstrap, and the shared auth gate.
+For provisioning the cluster itself, see [Cluster setup](cluster-setup.md).
+If the app is stateful, see [Backups](backups.md) too.
+
+This repo is the single source of truth for how apps are deployed. App
+repos contain the app, its Dockerfile(s) and a CI workflow that builds
+images, and nothing about the cluster.
+
+## What an app must provide
+
+The cluster assumes these of every app. `ZetaTwo/canst` is a complete
+reference for a web app with a database (`backend/Dockerfile`,
+`frontend/Dockerfile`, `.github/workflows/deploy.yml`).
+
+- **Container images on `ghcr.io/zetatwo/<image>`**, pushed by the app's CI
+  on every push to `main` as both `:<sha>` and `:main-<unix epoch>-<sha>`.
+  The epoch is the commit time (`git log -1 --format=%ct`), so the deploy
+  workflow can always pick the newest. Production uses `vX[.Y[.Z]]` tags
+  created by retagging an already-tested `:<sha>` image, never by
+  rebuilding (see [Staging and production](#staging-and-production)).
+- **Plain HTTP on one container port.** Traefik terminates TLS. A web app
+  whose frontend and API are separate images still gets one hostname: the
+  Ingress routes by path (canst sends `/api` to the backend and everything
+  else to a Caddy container serving the built SPA), so the browser sees a
+  single origin and cookie auth needs no CORS.
+- **A health endpoint** for liveness/readiness probes (canst:
+  `GET /api/healthz`, which round-trips the database). Headless apps
+  without HTTP skip probes.
+- **Structured logs on stdout**: one JSON object per line with a `level`
+  field (`ERROR` posts to Discord, see [Monitoring](monitoring.md)) and a
+  `message` field. For Rust `tracing`:
+  `tracing_subscriber::fmt().json().flatten_event(true)`. Non-JSON lines
+  still reach Loki, but never alert.
+- **Pod label `app: <name>`** on every workload, including CronJob pod
+  templates. Vector uses it as the Loki `app` label and to name the app in
+  Discord alerts.
+- **Config and secrets from outside the image**: a config file mounted from
+  a Secret (canst's `config.toml`) or environment variables. Ansible renders
+  the Secret from vaulted values (see
+  [secrets](#gitops-flux-cd) below); nothing secret is ever baked into an
+  image or committed unencrypted.
+- **Schema migrations as a separate command** that exits when done (canst:
+  `canst-backend --config <path> migrate`), run as an initContainer of the
+  app's Deployment. If it fails, the new pod never becomes Ready and the old
+  one keeps serving. Migrations must stay compatible with the previous app
+  version for the few seconds both run.
+- **Awareness of the auth gate in staging.** Staging is reachable only
+  through Google login (oauth2-proxy). The app's own login, if it has one,
+  works unchanged behind it.
+
+## New app checklist
+
+The full order for a new web app with a database, linking the details
+below. Skip what doesn't apply (headless apps need no DNS or Ingress;
+stateless apps no database or backups). The order matters: each step
+depends on the ones before it.
+
+1. **App repo**: Dockerfile(s) and a CI workflow that tests, pushes the
+   images (see [What an app must provide](#what-an-app-must-provide)), then
+   triggers this repo's deploy (see [GitOps](#gitops-flux-cd)). Add the two
+   `DEPLOY_APP_*` secrets. Push once so the ghcr packages exist, then give
+   `ZetaTwo/infrastructure` Read access to each package.
+2. **DNS**: an A record in `terraform/dns.tf`, then `make tf-apply`. Do this
+   before the Ingress exists, so cert-manager's first HTTP-01 challenge
+   resolves.
+3. **Secrets, database, backups** in `ansible/group_vars/all.yml` and an
+   app role (`ansible/roles/<app>`, added to `site.yaml`): vaulted secrets,
+   a `postgres_databases` entry ([Shared Postgres](#shared-postgres)), a
+   `backup_targets` entry ([Backups](backups.md)), and the namespace in
+   `ghcr_pull_secret_namespaces`. Then `make ansible-apply`. This creates
+   the namespace and every Secret the manifests will reference.
+4. **Manifests**: `k8s/<app>/` (flat, or `base/` + `overlays/`), a backup
+   CronJob if stateful, and the app added to the root
+   `k8s/kustomization.yaml`.
+5. **Deploy targets**: a `[[target]]` per image per environment in
+   `deploy-targets.toml`.
+6. Push 4 and 5 together, then let the app's CI trigger the deploy workflow
+   (or run it by hand). Until it commits real tags, the overlay's
+   placeholder tags leave the pods in `ImagePullBackOff`; that's expected.
+7. [Check the rollout](#checking-a-rollout), then run one backup by hand
+   and a restore drill ([Backups](backups.md#restore)).
 
 ## GitOps (Flux CD)
 
@@ -16,9 +94,10 @@ bootstrap` step and no write access to this repo from inside the cluster —
 Flux only ever reads.
 
 `k8s/` has one subdirectory per app, each with its own `kustomization.yaml`,
-aggregated by the root `k8s/kustomization.yaml`. **Adding a new app is: add
-a subdirectory + one line in the root file + `git push`** — no Ansible or
-Terraform changes needed for the deployment itself:
+aggregated by the root `k8s/kustomization.yaml`. The manifests part of
+adding an app is a subdirectory, one line in the root file and a
+`git push` (DNS, secrets and the database are separate steps, see the
+[New app checklist](#new-app-checklist)):
 
 1. **Web apps only**: add a Cloudflare A record for the new hostname in
    `terraform/dns.tf` (on `var.cloudflare_zones["zetatwo_com"]` for a public
@@ -160,6 +239,11 @@ implementation. If a release is cut from a commit that never went through
 `deploy-staging` (e.g. tagged from a branch, not `main`), this step fails
 loudly rather than promoting an untested artifact.
 
+A web app with several images (canst: backend + frontend) lists each in
+the overlay's `images:`, one `- name:`/`newTag:` pair per image, with one
+deploy target per image. Its Ingress routes by path on the one host (see
+`k8s/canst/overlays/staging/ingress.yaml`).
+
 Not every app needs this split — `aoe2-tournament-bot` (a Discord bot)
 deliberately has no staging tier, since Discord allows only one gateway
 connection per bot token and a second running instance would conflict with
@@ -173,6 +257,59 @@ cluster, just consumed by `kubectl kustomize`/`kustomize build`) and Flux's
 own custom resource (`kind: Kustomization`,
 `apiVersion: kustomize.toolkit.fluxcd.io/v1`, a live object in-cluster) are
 unrelated things that happen to share a name.
+
+## Checking a rollout
+
+Run these on the node (`ssh root@node1.zetatwo.dev`, see
+[Cluster setup](cluster-setup.md#accessing-the-cluster)):
+
+```sh
+# Has Flux applied the latest commit? (lastAppliedRevision = main's sha)
+k3s kubectl get kustomization apps -n flux-system
+# Pods, Ingress and certificate for the app
+k3s kubectl get pods,ingress,certificate -n <namespace>
+# Why a pod isn't starting (missing Secret, image pull, failing probe)
+k3s kubectl describe pod -n <namespace> <pod>
+k3s kubectl get events -n <namespace> --sort-by=.lastTimestamp
+# Migration initContainer output
+k3s kubectl logs -n <namespace> deploy/<deployment> -c migrate
+```
+
+From outside, a staging URL should answer anonymous requests with a 302
+to `accounts.google.com` (the auth gate), and the certificate should come
+from Let's Encrypt. Common first-rollout states:
+
+- `CreateContainerConfigError`: a referenced Secret doesn't exist yet. Run
+  `make ansible-apply`.
+- `ImagePullBackOff` on a `placeholder-...` tag: the deploy workflow hasn't
+  committed real tags yet. On a real tag: the namespace is missing from
+  `ghcr_pull_secret_namespaces`.
+- Certificate stuck not Ready: the DNS record is missing or proxied
+  through Cloudflare (it must be un-proxied for HTTP-01).
+
+## Removing an app
+
+Flux runs with `prune: true` (`ansible/roles/flux`), so deleting an app's
+directory under `k8s/` (or its line in the root kustomization) deletes
+everything Flux created for it, **including its Namespace, and with it
+every Secret Ansible put there**. That's what you want when removing an
+app, and a hazard otherwise: never delete or rename a `namespace.yaml` by
+accident. The same applies to `k8s/postgres/`, whose namespace holds the
+database volume for every app.
+
+To remove an app completely:
+
+1. Delete `k8s/<app>/` and its line in `k8s/kustomization.yaml`, and its
+   targets in `deploy-targets.toml`. Push.
+2. Remove its Ansible role (and `site.yaml` entry), its entries in
+   `ghcr_pull_secret_namespaces`, `backup_targets` and
+   `postgres_databases`, and its vaulted variables.
+3. `ansible/roles/postgres` never drops anything, so drop the database and
+   role by hand:
+   `k3s kubectl exec -n postgres postgres-0 -- psql -U postgres -c 'DROP DATABASE <db>' -c 'DROP ROLE <db>'`.
+4. Remove its DNS record from `terraform/dns.tf` and `make tf-apply`.
+5. Its restic repository in the backups bucket is left alone. Delete it in
+   the Hetzner console once the backups are no longer wanted.
 
 ## Shared Postgres
 
