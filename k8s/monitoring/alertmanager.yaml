@@ -34,8 +34,11 @@ spec:
           discord_configs:
             - webhook_url_file: /etc/alertmanager-secrets/discord/webhook_url
               title: "🚨 {{ .GroupLabels.alertname }}"
+              # Prints only the labels an alert actually has: node rules
+              # carry `instance`, kubernetes rules `namespace` plus `pod`,
+              # `deployment`, `job_name` or `cronjob`.
               message: |-
                 {{ range .Alerts }}
-                **App:** {{ .Labels.app }}
-                **Details:** {{ .Annotations.summary }}
+                {{ if eq .Status "resolved" }}✅ **Resolved:** {{ else }}**Details:** {{ end }}{{ .Annotations.summary }}
+                {{ with .Labels.namespace }}**Namespace:** {{ . }}{{ end }}{{ with .Labels.instance }}**Instance:** {{ . }}{{ end }}
                 {{ end }}
