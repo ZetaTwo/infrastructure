@@ -294,8 +294,12 @@ directory under `k8s/` (or its line in the root kustomization) deletes
 everything Flux created for it, **including its Namespace, and with it
 every Secret Ansible put there**. That's what you want when removing an
 app, and a hazard otherwise: never delete or rename a `namespace.yaml` by
-accident. The same applies to `k8s/postgres/`, whose namespace holds the
-database volume for every app.
+accident. The one exception is `k8s/postgres/`: its namespace holds the
+database volume for every app, so it carries
+`kustomize.toolkit.fluxcd.io/prune: disabled` and Flux never deletes it,
+even if the directory is removed. Deleting it is a deliberate manual
+`kubectl delete namespace postgres`. Give any future namespace holding
+shared, hard-to-recreate data the same annotation.
 
 To remove an app completely:
 

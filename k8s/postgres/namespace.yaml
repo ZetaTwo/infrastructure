@@ -2,3 +2,8 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: postgres
+  annotations:
+    # Flux runs with prune: true. Deleting this namespace would delete every
+    # app's database volume with it, so Flux must never prune it — even if
+    # k8s/postgres/ is removed or renamed. Delete it by hand if ever needed.
+    kustomize.toolkit.fluxcd.io/prune: disabled
