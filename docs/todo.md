@@ -33,3 +33,14 @@ Podman+Caddy to k3s, rather than carried over 1:1:
   needs an overlay (`canst.zeta-two.com`, public), a `canst` database and
   environment entry, its own secrets and backup target, and a release job in
   the canst repo that promotes the tested `:<sha>` image.
+- **Discord alerts drop every structured field but `message`.** Vector's
+  `format_discord` transform (`k8s/monitoring/vector.yaml`) only ever
+  forwards `.message.message` to Discord; any other field an app logs
+  alongside it (`status`, request context, etc.) silently never reaches
+  the alert even though it's sitting right there in the parsed JSON and
+  still reaches Loki. This forces every app to cram all alert-worthy
+  detail into the message string itself (worked around for
+  aoe2-groups-proxy, see its `error.rs`), which is fragile and easy to
+  regress. Fix properly: have `format_discord` render the other fields
+  too (e.g. as a second embed field, or inline in the text) instead of
+  discarding them.
