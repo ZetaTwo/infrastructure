@@ -33,3 +33,15 @@ spec:
     - kind: HelmRelease
       name: '*'
       namespace: monitoring
+  # Transient network errors talking to GitHub/Helm repos — the next
+  # reconciliation attempt usually succeeds, so don't alert on these.
+  # Real reconciliation errors (invalid config, apply failures, etc.)
+  # are unaffected and still alert.
+  exclusionList:
+    - "dial tcp.*i/o timeout"
+    - "dial tcp.*: server misbehaving"
+    - "dial tcp.*: no such host"
+    - "dial tcp.*network is unreachable"
+    - "net/http: TLS handshake timeout"
+    - "connection reset by peer"
+    - "connect: connection refused"
