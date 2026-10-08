@@ -230,16 +230,14 @@ split (`k8s/aoe2-groups-proxy/` is the reference) instead of a flat
   — they're two permanently co-resident Deployments, not templated
   variants of one.
 
-CI's production job doesn't rebuild the image — it verifies the release's
-commit already produced a `:<sha>` image (via the `deploy-staging` job
-having already run against it) and promotes that exact artifact with
+Releasing means pushing a `vX.Y.Z` tag. The app's `.github/workflows/release.yml`
+doesn't rebuild the image — it verifies the tagged commit already has a
+`:<sha>` image from `main`'s CI and promotes that exact artifact with
 `docker buildx imagetools create --tag <image>:<release-tag>
 <image>:<sha>`, so what ships to production is bit-identical to what was
-tested in staging. See `aoe2-streaming`'s `.github/workflows/
-backend-deploy.yml` for the reference `deploy-staging`/`deploy-production`
-implementation. If a release is cut from a commit that never went through
-`deploy-staging` (e.g. tagged from a branch, not `main`), this step fails
-loudly rather than promoting an untested artifact.
+tested in staging. See `aoe2-streaming`'s `.github/workflows/release.yml`
+for the reference. If the tagged commit was never built on `main`, this
+step fails loudly rather than promoting an untested artifact.
 
 A web app with several images (canst: backend + frontend) lists each in
 the overlay's `images:`, one `- name:`/`newTag:` pair per image, with one
@@ -250,8 +248,7 @@ Not every app needs this split — `aoe2-tournament-bot` (a Discord bot)
 deliberately has no staging tier, since Discord allows only one gateway
 connection per bot token and a second running instance would conflict with
 production. It still moved from "deploy on every push" to "deploy only on
-release, promoting the tested image" (see `.github/workflows/ci.yml`'s
-`deploy-production` job) — it just has one environment instead of two.
+release, promoting the tested image" (see `.github/workflows/release.yml`) — it just has one environment instead of two.
 
 One naming gotcha: plain Kustomize's config file (`kustomization.yaml`,
 `apiVersion: kustomize.config.k8s.io/v1beta1`, never applied to the
