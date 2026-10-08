@@ -104,12 +104,14 @@ spec:
             text = .message.message
             if text == null { text = encode_json(.message) }
             ts = format_timestamp!(.timestamp, "%Y-%m-%dT%H:%M:%SZ")
+            app = to_string!(app)
+            text = truncate(to_string!(text), 1000, suffix: "…")
             fields = [
               {"name": "Timestamp", "value": ts, "inline": true},
-              {"name": "App", "value": to_string!(app), "inline": true},
-              {"name": "Message", "value": truncate(to_string!(text), 1000, suffix: "…")}
+              {"name": "App", "value": app, "inline": true},
+              {"name": "Message", "value": text}
             ]
-            size = 100 + strlen(ts) + strlen(to_string!(fields[1].value)) + strlen(to_string!(fields[2].value))
+            size = 100 + strlen(ts) + strlen(app) + strlen(text)
             extra = object(.message) ?? {}
             del(extra.message)
             for_each(extra) -> |key, value| {
