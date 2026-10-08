@@ -8,12 +8,11 @@ Podman+Caddy to k3s, rather than carried over 1:1:
   but nodes don't join each other as a k3s cluster yet — bumping it above 1
   today just creates independent single-node servers. Needs k3s
   server/agent join logic (a shared cluster token, one initial server node)
-  before it's actually usable.
-- **No live storage redundancy for stateful apps.** Every PVC uses
-  `local-path` (host-path, tied to the node's local disk) — see
-  [Backups](backups.md#storage). Backups are the only recovery mechanism,
-  not a layer on top of redundant storage. Revisit (Hetzner CSI + a
-  detachable Volume) once multi-node clustering exists.
+  before it's actually usable. Storage also needs rethinking then: every
+  PVC uses `local-path` (host-path, tied to the node's local disk — see
+  [Backups](backups.md#storage)), which is fine on one node with backups
+  but pins stateful pods to whichever node holds their data. Move them to
+  storage that can follow a pod (e.g. Hetzner CSI + a detachable Volume).
 - **Repeat backup restore drills.** First drilled 2026-10-04 on
   canst-staging ([Backups](backups.md#restore)), but against a database
   with no user data yet. Repeat periodically, and once real data exists.
