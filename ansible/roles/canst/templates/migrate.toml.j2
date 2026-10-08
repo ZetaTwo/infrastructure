@@ -1,0 +1,7 @@
+# Rendered by ansible/roles/canst for the {{ item.name }} environment. Mounted
+# into the migrate initContainer only — a [database]-only subset of
+# config.toml.j2, read via the app's config::load_database (figment's
+# extract_inner), using the <db_name>_migrate role (owns the database, full
+# DDL) instead of config.toml's DML-only <db_name>_app role.
+[database]
+url = "postgres://{{ item.db_name }}_migrate:{{ item.migrate_db_password | urlencode }}@postgres.postgres.svc.cluster.local/{{ item.db_name }}"

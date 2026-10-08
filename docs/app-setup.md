@@ -311,8 +311,8 @@ To remove an app completely:
    `ghcr_pull_secret_namespaces`, `backup_targets` and
    `postgres_databases`, and its vaulted variables.
 3. `ansible/roles/postgres` never drops anything, so drop the database and
-   role by hand:
-   `k3s kubectl exec -n postgres postgres-0 -- psql -U postgres -c 'DROP DATABASE <db>' -c 'DROP ROLE <db>'`.
+   all three roles by hand:
+   `k3s kubectl exec -n postgres postgres-0 -- psql -U postgres -c 'DROP DATABASE <db>' -c 'DROP ROLE <db>_migrate' -c 'DROP ROLE <db>_app' -c 'DROP ROLE <db>_backup'`.
 4. Remove its DNS record from `terraform/dns.tf` and `make tf-apply`.
 5. Its restic repository in the backups bucket is left alone. Delete it in
    the Hetzner console once the backups are no longer wanted.
@@ -323,26 +323,42 @@ To remove an app completely:
 `postgres.postgres.svc.cluster.local:5432`, on a `local-path` PVC (so
 [Backups](backups.md) are the only recovery mechanism). It's one instance
 rather than one per app to keep memory and upgrade overhead flat as apps
-are added. Each app (and each environment of an app) gets its own role and
-database of the same name. The role owns the database, so the app can run
-its own migrations, and `CONNECT` is revoked from `PUBLIC` so apps can't
-reach each other's databases.
+are added. Each app (and each environment of an app) gets its own database
+and *three* roles, not one: `<db>_migrate` owns the database (full DDL,
+used only by a migration step), `<db>_app` gets DML-only grants (SELECT/
+INSERT/UPDATE/DELETE, plus default privileges so objects `<db>_migrate`
+creates later are automatically covered) for the running app itself, and
+`<db>_backup` gets read-only grants the same way, for `pg_dump`. `CONNECT`
+is revoked from `PUBLIC` so apps can't reach each other's databases, then
+re-granted explicitly to `_app`/`_backup` (the owner role doesn't need it
+granted back). The running app never holds DDL rights, and backups never
+hold write access.
 
 The StatefulSet is Flux-managed. Everything secret is Ansible's
 (`ansible/roles/postgres`): the `postgres-superuser` Secret, and an
 idempotent `psql` run inside `postgres-0` per `postgres_databases` entry
-that creates the role and database if missing and resets the password
-every run, so the vaulted value stays the source of truth.
+that creates the database and all three roles if missing and resets every
+password every run, so the vaulted values stay the source of truth.
 
 **An app gets a database** by:
 
-1. Generating and vault-encrypting a password as `<db>_db_password` (same
-   command as the restic password in [Backups](backups.md)) and appending it
-   to `ansible/group_vars/all.yml`.
-2. Adding `{name: <db>, password: "{{ <db>_db_password }}"}` to
-   `postgres_databases`.
-3. Giving the app its connection string from its own Ansible role, e.g. a
-   rendered config file Secret (see `ansible/roles/canst`), never in git.
+1. Generating and vault-encrypting three passwords — `<db>_migrate_db_password`,
+   `<db>_app_db_password`, `<db>_backup_db_password` (same command as the
+   restic password in [Backups](backups.md)) — and appending them to
+   `ansible/group_vars/all.yml`.
+2. Adding an entry to `postgres_databases`:
+   ```yaml
+   postgres_databases:
+     - name: <db>
+       migrate_password: "{{ <db>_migrate_db_password }}"
+       app_password: "{{ <db>_app_db_password }}"
+       backup_password: "{{ <db>_backup_db_password }}"
+   ```
+3. Giving the app its connection strings from its own Ansible role, e.g.
+   rendered config file Secrets (see `ansible/roles/canst` — one Secret for
+   the app's own `<db>_app` role, a separate one for whatever runs
+   migrations with `<db>_migrate`, so the DDL-owner credential never lands
+   on the running app's filesystem), never in git.
 4. `make ansible-apply`.
 
 On the very first rollout, push `k8s/postgres/` and then run

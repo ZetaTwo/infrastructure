@@ -59,8 +59,9 @@ applies one `<app>-backup-secrets` Secret per entry, containing
 for its S3 backend), and `RESTIC_PASSWORD`. An entry with a `postgres:`
 block (a database on the [shared Postgres](app-setup.md#shared-postgres))
 also gets `PGHOST`, `PGUSER`, `PGDATABASE` and `PGPASSWORD`, so a plain
-`pg_dump` connects as the app's own role. That role owns its database, so
-it can dump it, and no superuser credential ever reaches an app namespace.
+`pg_dump` connects as that database's `<db>_backup` role — read-only, not
+the app's own runtime role — so no superuser credential, and no write
+access, ever reaches an app namespace.
 
 ## Adding backups for a new stateful app
 
@@ -72,7 +73,9 @@ it can dump it, and no superuser credential ever reaches an app namespace.
        --vault-password-file ansible/.vault_pass
    ```
    Append the resulting block to `ansible/group_vars/all.yml`.
-2. Add an entry to `backup_targets`:
+2. Add an entry to `backup_targets`, pointing `postgres.user` at the
+   database's `<db>_backup` role (from `postgres_databases` —
+   [Shared Postgres](app-setup.md#shared-postgres)):
    ```yaml
    backup_targets:
      - name: <app>
@@ -80,7 +83,8 @@ it can dump it, and no superuser credential ever reaches an app namespace.
        restic_password: "{{ <app>_restic_password }}"
        postgres:                          # only for a shared-Postgres database
          database: <db>                   # its postgres_databases name
-         password: "{{ <db>_db_password }}"
+         user: <db>_backup                # that entry's read-only role
+         password: "{{ <db>_backup_db_password }}"
    ```
 3. `make ansible-apply` — creates `<app>-backup-secrets` in the app's
    namespace.

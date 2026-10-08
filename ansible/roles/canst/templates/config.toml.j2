@@ -1,6 +1,12 @@
-# Rendered by ansible/roles/canst for the {{ item.name }} environment.
-database_url = "postgres://{{ item.db_name }}:{{ item.db_password | urlencode }}@postgres.postgres.svc.cluster.local/{{ item.db_name }}"
+# Rendered by ansible/roles/canst for the {{ item.name }} environment. Mounted
+# into the main canst-backend container only (ansible/roles/postgres's
+# <db_name>_app role: DML only, no DDL) — see migrate.toml.j2 for the separate
+# migrate initContainer's config.
+[app]
 paseto_key = "{{ item.paseto_key }}"
 cookie_domain = "{{ item.domain }}"
 listen_addr = "0.0.0.0:3000"
 log_format = "json"
+
+[database]
+url = "postgres://{{ item.db_name }}_app:{{ item.app_db_password | urlencode }}@postgres.postgres.svc.cluster.local/{{ item.db_name }}"

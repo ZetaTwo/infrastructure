@@ -1,6 +1,13 @@
 ---
 # Per-environment loop: each canst_environments entry gets its own namespace +
-# canst-config Secret (config.toml, rendered from templates/config.toml.j2).
+# two Secrets, kept separate so the running app container never has the
+# migrate role's credential sitting on its filesystem (both containers mount
+# their Secret as a volume, and a Secret volume projects every key as a
+# file):
+#   - canst-config (config.toml, templates/config.toml.j2) — the main
+#     canst-backend container, DML-only <db_name>_app role.
+#   - canst-config-migrate (migrate.toml, templates/migrate.toml.j2) — the
+#     migrate initContainer only, DDL-owner <db_name>_migrate role.
 # The database itself comes from ansible/roles/postgres (postgres_databases).
 - name: Ensure canst namespaces exist
   kubernetes.core.k8s:
@@ -24,6 +31,23 @@
       type: Opaque
       stringData:
         config.toml: "{{ lookup('template', 'config.toml.j2') }}"
+  loop: "{{ canst_environments }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+
+- name: Apply canst migrate config secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: canst-config-migrate
+        namespace: "{{ item.namespace }}"
+      type: Opaque
+      stringData:
+        migrate.toml: "{{ lookup('template', 'migrate.toml.j2') }}"
   loop: "{{ canst_environments }}"
   loop_control:
     label: "{{ item.name }}"

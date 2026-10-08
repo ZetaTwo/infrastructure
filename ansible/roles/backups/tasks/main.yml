@@ -21,7 +21,8 @@
       type: Opaque
       # A target with a `postgres:` entry (a database on the shared Postgres,
       # docs/backups.md) also gets libpq's PG* variables, so the CronJob's
-      # plain `pg_dump` connects as that app's own role.
+      # plain `pg_dump` connects as that database's read-only backup role
+      # (ansible/roles/postgres), not the app's own runtime role.
       stringData: >-
         {{ {
           'AWS_ACCESS_KEY_ID': backups_s3_access_key,
@@ -29,7 +30,7 @@
           'RESTIC_PASSWORD': item.restic_password,
         } | combine({
           'PGHOST': 'postgres.postgres.svc.cluster.local',
-          'PGUSER': item.postgres.database,
+          'PGUSER': item.postgres.user,
           'PGDATABASE': item.postgres.database,
           'PGPASSWORD': item.postgres.password,
         } if item.postgres is defined else {}) }}

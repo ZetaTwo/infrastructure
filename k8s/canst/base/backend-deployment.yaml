@@ -22,12 +22,15 @@ spec:
         - name: migrate
           # Always overridden by each overlay's images: newTag:.
           image: ghcr.io/zetatwo/canst-backend:placeholder-overridden-by-overlay
-          args: ["--config", "/etc/canst/config.toml", "migrate"]
+          # Its own config (migrate.toml, not config.toml): a different
+          # Postgres role with DDL rights, kept off the main container's
+          # filesystem entirely — see the migrate-config volume below.
+          args: ["--config", "/etc/canst/migrate.toml", "migrate"]
           env:
             - name: RUST_LOG
               value: info
           volumeMounts:
-            - name: config
+            - name: migrate-config
               mountPath: /etc/canst
               readOnly: true
       containers:
@@ -59,8 +62,14 @@ spec:
             limits:
               memory: 256Mi
       volumes:
-        # config.toml (database_url, paseto_key, ...), rendered by
-        # ansible/roles/canst — never in git.
+        # config.toml (database, paseto_key, ...), rendered by
+        # ansible/roles/canst — never in git. Uses a DML-only Postgres role.
         - name: config
           secret:
             secretName: canst-config
+        # migrate.toml: a separate Secret (not just a separate key in the one
+        # above) so this DDL-owner credential never lands on the main
+        # container's filesystem — see ansible/roles/canst.
+        - name: migrate-config
+          secret:
+            secretName: canst-config-migrate

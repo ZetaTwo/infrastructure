@@ -192,31 +192,43 @@ backups_s3_secret_key: !vault |
 # restic_password (see docs/backups.md's "Adding backups for a new
 # stateful app"). A `postgres:` entry is for a database on the shared
 # Postgres: the Secret then also carries PGHOST/PGUSER/PGDATABASE/PGPASSWORD.
+# `user` is the read-only role pg_dump connects as (ansible/roles/postgres) —
+# distinct from the app's own runtime role.
 backup_targets:
   - name: canst-staging
     namespace: canst-staging
     restic_password: "{{ canst_staging_restic_password }}"
     postgres:
       database: canst_staging
-      password: "{{ canst_staging_db_password }}"
+      user: canst_staging_backup
+      password: "{{ canst_staging_backup_db_password }}"
 
 # Shared Postgres (k8s/postgres/, ansible/roles/postgres — docs/app-setup.md
-# #shared-postgres). Each postgres_databases entry gets a role and a database
-# of the same name, owned by that role. Passwords are 32 random bytes:
+# #shared-postgres). Each postgres_databases entry gets a database plus three
+# roles: <name>_migrate (owns the database — full DDL, used only by the
+# `migrate` initContainer), <name>_app (DML only, used by the running app),
+# and <name>_backup (read-only, used by pg_dump). Passwords are 32 random
+# bytes:
 #   python3 -c "import secrets, base64; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())" \
 #     | ansible-vault encrypt_string --stdin-name <name> --vault-password-file .vault_pass
 postgres_databases:
   - name: canst_staging
-    password: "{{ canst_staging_db_password }}"
+    migrate_password: "{{ canst_staging_migrate_db_password }}"
+    app_password: "{{ canst_staging_app_db_password }}"
+    backup_password: "{{ canst_staging_backup_db_password }}"
 
-# ansible/roles/canst: one namespace + canst-config Secret (config.toml) per
-# environment. paseto_key is `openssl rand -base64 32`, vaulted like above.
+# ansible/roles/canst: one namespace + two Secrets (canst-config for the main
+# container's config.toml, canst-config-migrate for the migrate initContainer's
+# migrate.toml) per environment — kept separate so the running app container
+# never has the migrate role's credential sitting on its filesystem. paseto_key
+# is `openssl rand -base64 32`, vaulted like above.
 canst_environments:
   - name: staging
     namespace: canst-staging
     domain: canst.zetatwo.dev
     db_name: canst_staging
-    db_password: "{{ canst_staging_db_password }}"
+    app_db_password: "{{ canst_staging_app_db_password }}"
+    migrate_db_password: "{{ canst_staging_migrate_db_password }}"
     paseto_key: "{{ canst_staging_paseto_key }}"
 
 postgres_superuser_password: !vault |
@@ -227,14 +239,30 @@ postgres_superuser_password: !vault |
           6163653638376638350a353236313261653666336362353639313031313630626266323263323563
           39376336383031353232376165346164386338613838633261376135643636623365333432356638
           6136353831393862383065326462383835633565396163616434
-canst_staging_db_password: !vault |
+canst_staging_migrate_db_password: !vault |
           $ANSIBLE_VAULT;1.1;AES256
-          63643766383962353962343432306263393661653734656534366336343861653334306564326265
-          3162356366643334343266326438393030626639663034360a623930386366613731353034643735
-          32663634613164393262613638363032376339663136323439303432633830303537646664326331
-          6663386535613536390a316662333638623961626630396130356263323335643661326432356537
-          36636463336534323862356435373736666132343063363035383364356338373237343265383132
-          3036343233343438333133626334366564333539613934353339
+          62383165653932373462643536303230376131613534656266313831396264623830666636623435
+          6636396631343734383733653430386366333339356162620a633239666538346265313064303533
+          38373739366536306335383134626565303235626130633961306138383562626265343565633335
+          6331666162653165380a376563353933616439616363656365313761373664333863613330666536
+          66653036396431383136383534386331323366633163303137306565663134346237336331313333
+          3333343865636332383433326561656132323738316464306532
+canst_staging_app_db_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          35633631396437643532343063306539393432333963346433373635366136333962336562643335
+          6662383163336239623930636430383638356230653438300a626131653637663863363763663430
+          39353462303531353638656136613766373938356563376661386161316465373431626637613533
+          3734353439306333300a636165363963656339626636333266353865353562343738373335376331
+          35323538333138316263393865363432323634316433316135353930353861343166363832353461
+          3836613034373364323432376233333339393638643931343462
+canst_staging_backup_db_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          35383236616434373931656634626264393734636465356131313932306339663236306261333333
+          6262666639653434653639623030316330353766383133390a353938386238383865396137303964
+          32313530623863363438373363663936313332343532366534613437666262616633303466663031
+          6537313261326439370a376561376364313562623532386265323562316230326334303431303535
+          62316566616533383231656566663337383930373862626264393438323962623132613863396261
+          6330613130306666613039643835313239623032303835616639
 canst_staging_paseto_key: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           33353366373861653366363863653932386233383533636466373865333530306137383862383362

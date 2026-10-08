@@ -1,7 +1,8 @@
 ---
 # The shared Postgres itself (k8s/postgres/) is Flux-managed; this role owns
-# only what can't live in git: the superuser password, and one database + role
-# per postgres_databases entry (docs/app-setup.md#shared-postgres).
+# only what can't live in git: the superuser password, and one database plus
+# migrate/app/backup roles per postgres_databases entry
+# (docs/app-setup.md#shared-postgres).
 - name: Ensure postgres namespace exists
   kubernetes.core.k8s:
     name: postgres
@@ -36,14 +37,19 @@
       status: "True"
     wait_timeout: 300
 
-# Idempotent: creates the role and database only if missing, and (re)sets the
+# Idempotent: creates each role/database only if missing, and (re)sets every
 # role's password every run so the vaulted value stays the source of truth.
-# Each app's role owns its database (so it can run migrations and pg_dump),
-# and CONNECT is revoked from PUBLIC so apps can't reach each other's data.
+# Three roles per database, not one: <name>_migrate owns the database (so it
+# has full DDL and can run migrations), <name>_app gets DML-only grants (plus
+# default privileges so tables/sequences created later by _migrate are
+# automatically covered), and <name>_backup gets read-only grants the same
+# way, for pg_dump. CONNECT is revoked from PUBLIC so apps can't reach each
+# other's data, then re-granted explicitly to _app/_backup (the owner role
+# doesn't need it granted back — ownership bypasses the PUBLIC revoke).
 #
 # The SQL is piped in base64-encoded: k8s_exec's command is a single string
 # and doesn't carry newlines through intact, so a heredoc doesn't survive.
-# Name and password go in as psql variables, quoted by psql itself (:'pw').
+# Names/passwords go in as psql variables, quoted by psql itself (:'pw').
 - name: Provision app databases
   kubernetes.core.k8s_exec:
     namespace: postgres
@@ -53,15 +59,49 @@
       sh -c {{ ('echo ' ~ (provision_sql | b64encode)
       ~ ' | base64 -d | psql -v ON_ERROR_STOP=1 -U postgres -d postgres'
       ~ ' -v name=' ~ (item.name | quote)
-      ~ ' -v pw=' ~ (item.password | quote)) | quote }}
+      ~ ' -v migrate_role=' ~ (migrate_role | quote)
+      ~ ' -v migrate_pw=' ~ (item.migrate_password | quote)
+      ~ ' -v app_role=' ~ (app_role | quote)
+      ~ ' -v app_pw=' ~ (item.app_password | quote)
+      ~ ' -v backup_role=' ~ (backup_role | quote)
+      ~ ' -v backup_pw=' ~ (item.backup_password | quote)) | quote }}
   vars:
+    migrate_role: "{{ item.name }}_migrate"
+    app_role: "{{ item.name }}_app"
+    backup_role: "{{ item.name }}_backup"
     provision_sql: |
-      SELECT format('CREATE ROLE %I LOGIN', :'name')
-        WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'name') \gexec
-      ALTER ROLE :"name" WITH LOGIN PASSWORD :'pw';
-      SELECT format('CREATE DATABASE %I OWNER %I', :'name', :'name')
+      SELECT format('CREATE ROLE %I LOGIN', :'migrate_role')
+        WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'migrate_role') \gexec
+      ALTER ROLE :"migrate_role" WITH LOGIN PASSWORD :'migrate_pw';
+      SELECT format('CREATE DATABASE %I OWNER %I', :'name', :'migrate_role')
         WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = :'name') \gexec
       REVOKE CONNECT ON DATABASE :"name" FROM PUBLIC;
+
+      \connect :"name"
+
+      SELECT format('CREATE ROLE %I LOGIN', :'app_role')
+        WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_role') \gexec
+      ALTER ROLE :"app_role" WITH LOGIN PASSWORD :'app_pw';
+      GRANT CONNECT ON DATABASE :"name" TO :"app_role";
+      GRANT USAGE ON SCHEMA public TO :"app_role";
+      GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :"app_role";
+      GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO :"app_role";
+      ALTER DEFAULT PRIVILEGES FOR ROLE :"migrate_role" IN SCHEMA public
+        GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"app_role";
+      ALTER DEFAULT PRIVILEGES FOR ROLE :"migrate_role" IN SCHEMA public
+        GRANT USAGE, SELECT ON SEQUENCES TO :"app_role";
+
+      SELECT format('CREATE ROLE %I LOGIN', :'backup_role')
+        WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'backup_role') \gexec
+      ALTER ROLE :"backup_role" WITH LOGIN PASSWORD :'backup_pw';
+      GRANT CONNECT ON DATABASE :"name" TO :"backup_role";
+      GRANT USAGE ON SCHEMA public TO :"backup_role";
+      GRANT SELECT ON ALL TABLES IN SCHEMA public TO :"backup_role";
+      GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO :"backup_role";
+      ALTER DEFAULT PRIVILEGES FOR ROLE :"migrate_role" IN SCHEMA public
+        GRANT SELECT ON TABLES TO :"backup_role";
+      ALTER DEFAULT PRIVILEGES FOR ROLE :"migrate_role" IN SCHEMA public
+        GRANT SELECT ON SEQUENCES TO :"backup_role";
   register: postgres_provision
   changed_when: "'CREATE' in postgres_provision.stdout"
   loop: "{{ postgres_databases }}"
