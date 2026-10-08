@@ -21,7 +21,7 @@ spec:
       containers:
         - name: aoe2-tournament-bot
           # Set by the deploy workflow to the newest release tag (deploy-targets.toml).
-          image: ghcr.io/zetatwo/aoe2-tournament-bot:v1
+          image: ghcr.io/zetatwo/aoe2-tournament-bot:v1.0.1
           env:
             - name: RUST_LOG
               value: "info,serenity=warn"
