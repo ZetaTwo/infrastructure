@@ -91,7 +91,10 @@ spec:
           window_secs: 30
           key_field: '{{ "{{ kubernetes.pod_labels.app }}" }}'
         # Pre-encodes Discord's webhook JSON body as a string; the http
-        # sink below sends it as-is (codec: text).
+        # sink below sends it as-is (codec: text). Every parsed field
+        # besides `message` becomes its own embed field, non-strings as
+        # inline JSON. Truncation and the field/size caps keep within
+        # Discord's embed limits (25 fields, 1024 per value, 6000 total).
         format_discord:
           type: remap
           inputs: [throttle_errors]
@@ -101,16 +104,33 @@ spec:
             text = .message.message
             if text == null { text = encode_json(.message) }
             ts = format_timestamp!(.timestamp, "%Y-%m-%dT%H:%M:%SZ")
+            fields = [
+              {"name": "Timestamp", "value": ts, "inline": true},
+              {"name": "App", "value": to_string!(app), "inline": true},
+              {"name": "Message", "value": truncate(to_string!(text), 1000, suffix: "…")}
+            ]
+            size = 100 + strlen(ts) + strlen(to_string!(fields[1].value)) + strlen(to_string!(fields[2].value))
+            extra = object(.message) ?? {}
+            del(extra.message)
+            for_each(extra) -> |key, value| {
+              if is_string(value) {
+                value = truncate(string!(value), 1000, suffix: "…")
+                if value == "" { value = "(empty)" }
+              } else {
+                value = "`" + truncate(encode_json(value), 1000, suffix: "…") + "`"
+              }
+              name = truncate(key, 250, suffix: "…")
+              size = size + strlen(name) + strlen(value)
+              if length(fields) < 25 && size < 5900 {
+                fields = push(fields, {"name": name, "value": value, "inline": strlen(value) <= 40})
+              }
+            }
             .message = encode_json({
               "embeds": [
                 {
                   "title": "An application logged an error",
                   "color": 15158332,
-                  "fields": [
-                    {"name": "Timestamp", "value": ts, "inline": true},
-                    {"name": "App", "value": to_string!(app), "inline": true},
-                    {"name": "Message", "value": to_string!(text)}
-                  ]
+                  "fields": fields
                 }
               ]
             })
