@@ -9,4 +9,4 @@ images:
   # Set by the deploy workflow to the newest release tag (deploy-targets.toml).
   # Keep this the only newTag line in this file.
   - name: ghcr.io/zetatwo/aoe2-groups-proxy
-    newTag: v1
+    newTag: v1.1.0
