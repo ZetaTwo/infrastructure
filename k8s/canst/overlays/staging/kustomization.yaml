@@ -6,6 +6,11 @@ resources:
   - namespace.yaml
   - ingress.yaml
   - backup-cronjob.yaml
+patches:
+  - path: seed-patch.yaml
+    target:
+      kind: Deployment
+      name: canst-backend
 images:
   # Set by the deploy workflow to the newest main-* tags (deploy-targets.toml).
   # Each newTag must stay directly under its own `- name:` line.

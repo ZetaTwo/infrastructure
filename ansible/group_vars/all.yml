@@ -221,11 +221,13 @@ postgres_databases:
 # container's config.toml, canst-config-migrate for the migrate initContainer's
 # migrate.toml) per environment — kept separate so the running app container
 # never has the migrate role's credential sitting on its filesystem. paseto_key
-# is `openssl rand -base64 32`, vaulted like above.
+# is `openssl rand -base64 32`, vaulted like above. `seed: true` lets the
+# app's seed command run (staging only; its overlay adds the initContainer).
 canst_environments:
   - name: staging
     namespace: canst-staging
     domain: canst.zetatwo.dev
+    seed: true
     db_name: canst_staging
     app_db_password: "{{ canst_staging_app_db_password }}"
     migrate_db_password: "{{ canst_staging_migrate_db_password }}"

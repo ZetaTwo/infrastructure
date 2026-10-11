@@ -10,3 +10,9 @@ log_format = "json"
 
 [database]
 url = "postgres://{{ item.db_name }}_app:{{ item.app_db_password | urlencode }}@postgres.postgres.svc.cluster.local/{{ item.db_name }}"
+{% if item.seed | default(false) %}
+
+# Lets the staging-only seed initContainer insert test data.
+[seed]
+enabled = true
+{% endif %}

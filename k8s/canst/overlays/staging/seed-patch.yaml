@@ -1,0 +1,18 @@
+# Staging only: after migrate, fill the database with test data (canst's
+# `seed` subcommand; idempotent, so it runs on every rollout). Uses the app's
+# DML-only config.toml, whose [seed] enabled = true (ansible/roles/canst,
+# `seed: true` in canst_environments) is the app-side guard. A JSON patch
+# appending to the list, since a strategic merge would put it before migrate.
+- op: add
+  path: /spec/template/spec/initContainers/-
+  value:
+    name: seed
+    image: ghcr.io/zetatwo/canst-backend:placeholder-overridden-by-overlay
+    args: ["--config", "/etc/canst/config.toml", "seed"]
+    env:
+      - name: RUST_LOG
+        value: info
+    volumeMounts:
+      - name: config
+        mountPath: /etc/canst
+        readOnly: true
