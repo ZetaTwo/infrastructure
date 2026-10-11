@@ -1,7 +1,7 @@
 # Rendered by ansible/roles/canst for the {{ item.name }} environment. Mounted
-# into the main canst-backend container only (ansible/roles/postgres's
-# <db_name>_app role: DML only, no DDL) — see migrate.toml.j2 for the separate
-# migrate initContainer's config.
+# into the main canst-backend container and, in staging, the seed
+# initContainer (ansible/roles/postgres's <db_name>_app role: DML only, no
+# DDL) — see migrate.toml.j2 for the separate migrate initContainer's config.
 [app]
 paseto_key = "{{ item.paseto_key }}"
 cookie_domain = "{{ item.domain }}"
