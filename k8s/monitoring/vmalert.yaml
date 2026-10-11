@@ -72,7 +72,8 @@ spec:
               interval: 1m
               rules:
                 - alert: PodCrashLooping
-                  expr: increase(kube_pod_container_status_restarts_total[15m]) > 3
+                  # Init containers have their own metric, so both are checked.
+                  expr: increase(kube_pod_container_status_restarts_total[15m]) > 3 or increase(kube_pod_init_container_status_restarts_total[15m]) > 3
                   labels:
                     severity: warning
                   annotations:
@@ -80,21 +81,31 @@ spec:
                 - alert: ContainerStuckWaiting
                   # The states a first rollout typically gets stuck in: missing
                   # Secret, bad image tag or pull secret, crash loop.
-                  expr: max by (namespace, pod, container, reason) (kube_pod_container_status_waiting_reason{reason=~"CrashLoopBackOff|ImagePullBackOff|ErrImagePull|CreateContainerConfigError"}) > 0
+                  expr: max by (namespace, pod, container, reason) (kube_pod_container_status_waiting_reason{reason=~"CrashLoopBackOff|ImagePullBackOff|ErrImagePull|CreateContainerConfigError"} or kube_pod_init_container_status_waiting_reason{reason=~"CrashLoopBackOff|ImagePullBackOff|ErrImagePull|CreateContainerConfigError"}) > 0
                   for: 10m
                   labels:
                     severity: warning
                   annotations:
                     summary: "{{ $labels.namespace }}/{{ $labels.pod }} ({{ $labels.container }}) stuck in {{ $labels.reason }} for 10 min"
                 - alert: DeploymentUnavailable
-                  # Also catches a rollout whose migrate initContainer keeps
-                  # failing: the new pod never becomes Ready.
+                  # Not a stuck rollout: the old pod keeps serving through a
+                  # rolling update, so availability holds (DeploymentRolloutStuck).
                   expr: kube_deployment_status_replicas_available < kube_deployment_spec_replicas
                   for: 15m
                   labels:
                     severity: warning
                   annotations:
                     summary: "{{ $labels.namespace }}/{{ $labels.deployment }} has fewer available replicas than desired for 15 min"
+                - alert: DeploymentRolloutStuck
+                  # Kubernetes marks a rollout Progressing=false once it has made
+                  # no progress for progressDeadlineSeconds (10 min by default),
+                  # e.g. a new pod whose migrate or seed initContainer keeps
+                  # failing while the old pod keeps serving.
+                  expr: max by (namespace, deployment) (kube_deployment_status_condition{condition="Progressing", status="false"}) > 0
+                  labels:
+                    severity: warning
+                  annotations:
+                    summary: "{{ $labels.namespace }}/{{ $labels.deployment }} rollout has made no progress for its deadline (10 min by default)"
                 - alert: StatefulSetUnavailable
                   expr: kube_statefulset_status_replicas_ready < kube_statefulset_replicas
                   for: 15m

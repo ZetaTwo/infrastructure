@@ -82,9 +82,10 @@ There are two independent paths to the same Discord webhook:
    | `node` | `HighCPUUsage` | CPU above 90% for 1 min |
    | `node` | `HighDiskUsage` | any ext4/xfs/btrfs filesystem above 90% for 2 min |
    | `node` | `RebootRequired` | the node needs a reboot after package upgrades, for 10 min |
-   | `kubernetes` | `PodCrashLooping` | a container restarted more than 3 times in 15 min |
-   | `kubernetes` | `ContainerStuckWaiting` | a container in `CrashLoopBackOff`, `ImagePullBackOff`, `ErrImagePull` or `CreateContainerConfigError` for 10 min |
-   | `kubernetes` | `DeploymentUnavailable` | fewer available replicas than desired for 15 min, e.g. a failing `migrate` initContainer |
+   | `kubernetes` | `PodCrashLooping` | a container (init containers included) restarted more than 3 times in 15 min |
+   | `kubernetes` | `ContainerStuckWaiting` | a container (init containers included) in `CrashLoopBackOff`, `ImagePullBackOff`, `ErrImagePull` or `CreateContainerConfigError` for 10 min |
+   | `kubernetes` | `DeploymentUnavailable` | fewer available replicas than desired for 15 min (not a stuck rolling update: the old pod stays available) |
+   | `kubernetes` | `DeploymentRolloutStuck` | a rollout has made no progress for its `progressDeadlineSeconds` (10 min by default), e.g. a failing `migrate` initContainer while the old pod keeps serving |
    | `kubernetes` | `StatefulSetUnavailable` | fewer ready replicas than desired for 15 min |
    | `kubernetes` | `JobFailed` | a Job started in the last 6 h has failed |
    | `kubernetes` | `BackupStale` (critical) | a `*-backup` CronJob hasn't succeeded in 26 h, or is over 26 h old and never has |

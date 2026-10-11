@@ -34,7 +34,8 @@ reference for a web app with a database (`backend/Dockerfile`,
   field (`ERROR` posts to Discord, see [Monitoring](monitoring.md)) and a
   `message` field. For Rust `tracing`:
   `tracing_subscriber::fmt().json().flatten_event(true)`. Non-JSON lines
-  still reach Loki, but never alert.
+  still reach Loki, but never alert, so a command that fails (`migrate`,
+  say) must log its error as a JSON `ERROR` line, not just print it.
 - **Pod label `app: <name>`** on every workload, including CronJob pod
   templates. Vector uses it as the Loki `app` label and to name the app in
   Discord alerts.
@@ -46,8 +47,9 @@ reference for a web app with a database (`backend/Dockerfile`,
 - **Schema migrations as a separate command** that exits when done (canst:
   `canst-backend --config <path> migrate`), run as an initContainer of the
   app's Deployment. If it fails, the new pod never becomes Ready and the old
-  one keeps serving. Migrations must stay compatible with the previous app
-  version for the few seconds both run.
+  one keeps serving (`DeploymentRolloutStuck` alerts after 10 min).
+  Migrations must stay compatible with the previous app version for the few
+  seconds both run.
 - **Awareness of the auth gate in staging.** Staging is reachable only
   through Google login (oauth2-proxy). The app's own login, if it has one,
   works unchanged behind it, provided its API paths are routed past the
