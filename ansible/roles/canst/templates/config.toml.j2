@@ -16,3 +16,8 @@ url = "postgres://{{ item.db_name }}_app:{{ item.app_db_password | urlencode }}@
 [seed]
 enabled = true
 {% endif %}
+
+# The DESK's similar-prompt warning; the model is baked into the backend image
+# (see the backend-deployment's memory limit).
+[similarity]
+model_dir = "/usr/local/share/canst/model"

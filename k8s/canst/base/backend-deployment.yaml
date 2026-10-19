@@ -55,12 +55,15 @@ spec:
             httpGet:
               path: /api/healthz
               port: 3000
+          # ~190Mi resident once the similar-prompt embedding model
+          # (all-mpnet-base-v2 int8, loaded at startup) is in memory, ~235Mi
+          # after use; the rest of the app is a few tens of Mi.
           resources:
             requests:
               cpu: 50m
-              memory: 64Mi
-            limits:
               memory: 256Mi
+            limits:
+              memory: 384Mi
       volumes:
         # config.toml (database, paseto_key, ...), rendered by
         # ansible/roles/canst — never in git. Uses a DML-only Postgres role.
