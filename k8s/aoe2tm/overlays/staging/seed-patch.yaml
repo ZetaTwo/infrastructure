@@ -1,0 +1,18 @@
+# Staging only: after migrate, fill the database with test data (aoe2tm's
+# `seed` subcommand; idempotent, so it runs on every rollout). Uses the app's
+# DML-only config.toml, whose [seed] enabled = true (ansible/roles/aoe2tm,
+# `seed: true` in aoe2tm_environments) is the app-side guard. A JSON patch
+# appending to the list, since a strategic merge would put it before migrate.
+- op: add
+  path: /spec/template/spec/initContainers/-
+  value:
+    name: seed
+    image: ghcr.io/zetatwo/aoe2tm-backend:placeholder-overridden-by-overlay
+    args: ["--config", "/etc/aoe2tm/config.toml", "seed"]
+    env:
+      - name: RUST_LOG
+        value: info
+    volumeMounts:
+      - name: config
+        mountPath: /etc/aoe2tm
+        readOnly: true

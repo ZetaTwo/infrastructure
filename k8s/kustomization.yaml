@@ -4,6 +4,7 @@ resources:
   - aoe2-groups-proxy/overlays/staging
   - aoe2-groups-proxy/overlays/production
   - aoe2-tournament-bot
+  - aoe2tm/overlays/staging
   - auth
   - canst/overlays/staging
   - monitoring

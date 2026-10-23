@@ -1,0 +1,75 @@
+# Rendered by ansible/roles/aoe2tm for the {{ item.name }} environment. Mounted
+# into the main aoe2tm-backend container and, in staging, the seed
+# initContainer (ansible/roles/postgres's <db_name>_app role: DML only, no
+# DDL) — see migrate.toml.j2 for the separate migrate initContainer's config.
+# Each integration section below appears only when its values are set in
+# aoe2tm_environments; without one, that feature is off in the app.
+[app]
+paseto_key = {{ item.paseto_key | to_json }}
+cookie_domain = "{{ item.domain }}"
+listen_addr = "0.0.0.0:3000"
+public_url = "https://{{ item.domain }}"
+log_format = "json"
+
+[database]
+url = "postgres://{{ item.db_name }}_app:{{ item.app_db_password | urlencode }}@postgres.postgres.svc.cluster.local/{{ item.db_name }}"
+{% if item.seed | default(false) %}
+
+# Lets the staging-only seed initContainer insert test data.
+[seed]
+enabled = true
+{% endif %}
+{% if item.smtp is defined %}
+
+# Steam sign-ups confirm their email by link; without [smtp] the email is only logged.
+[smtp]
+host = {{ item.smtp.host | to_json }}
+port = {{ item.smtp.port | default(587) }}
+username = {{ item.smtp.username | to_json }}
+password = {{ item.smtp.password | to_json }}
+from = {{ item.smtp.from | to_json }}
+{% endif %}
+{% if item.discord is defined %}
+
+# Redirect URI registered with Discord: https://{{ item.domain }}/api/auth/discord/callback
+[discord]
+client_id = {{ item.discord.client_id | to_json }}
+client_secret = {{ item.discord.client_secret | to_json }}
+{% endif %}
+{% if item.xbox is defined %}
+
+# Redirect URI registered with Microsoft: https://{{ item.domain }}/api/auth/xbox/callback
+[xbox]
+client_id = {{ item.xbox.client_id | to_json }}
+client_secret = {{ item.xbox.client_secret | to_json }}
+{% endif %}
+{% if item.steam is defined %}
+
+# Steam login needs no app registration; the Web API key only adds persona names.
+[steam]
+{% if item.steam.api_key is defined %}
+api_key = {{ item.steam.api_key | to_json }}
+{% endif %}
+{% endif %}
+{% if item.challonge is defined %}
+
+[challonge]
+api_key = {{ item.challonge.api_key | to_json }}
+{% endif %}
+{% if item.google_sheets is defined %}
+
+[google_sheets]
+api_key = {{ item.google_sheets.api_key | to_json }}
+{% endif %}
+{% if item.s3 is defined %}
+
+# Replay uploads; without [s3] they're disabled.
+[s3]
+bucket = {{ item.s3.bucket | to_json }}
+region = {{ item.s3.region | default('us-east-1') | to_json }}
+{% if item.s3.endpoint is defined %}
+endpoint = {{ item.s3.endpoint | to_json }}
+{% endif %}
+access_key_id = {{ item.s3.access_key_id | to_json }}
+secret_access_key = {{ item.s3.secret_access_key | to_json }}
+{% endif %}

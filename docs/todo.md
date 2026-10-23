@@ -28,6 +28,11 @@ Podman+Caddy to k3s, rather than carried over 1:1:
   cluster can reach `postgres.postgres.svc.cluster.local:5432`; only
   per-database passwords and the revoked `CONNECT` keep apps apart. Add a
   NetworkPolicy admitting just app namespaces that have a database.
+- **aoe2tm production.** Only `k8s/aoe2tm/overlays/staging/` exists. Production
+  needs an overlay (`aoe2tm.zeta-two.com`, public, no `seed` initContainer), an
+  `aoe2tm` database and environment entry, its own secrets and backup target,
+  and real login provider apps. The app repo's `release.yml` already promotes
+  `:<sha>` images to `vX.Y.Z` tags for it.
 - **canst production.** Only `k8s/canst/overlays/staging/` exists. Production
   needs an overlay (`canst.zeta-two.com`, public), a `canst` database and
   environment entry, and its own secrets and backup target. The canst repo's

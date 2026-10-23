@@ -398,6 +398,54 @@ the backend's `config.toml`. On a fresh setup:
      -c "UPDATE users SET is_admin = true WHERE username = '<name>'"
    ```
 
+## One-time aoe2tm staging bootstrap
+
+aoe2tm (`ZetaTwo/aoe2-tournament-manager`) staging runs at `aoe2tm.zetatwo.dev`,
+gated by the `collaborators` policy, from `k8s/aoe2tm/` (`base/` plus
+`overlays/staging/`). It's laid out like canst:
+- a backend Deployment whose initContainers run `migrate` and then `seed`
+  (staging test data, idempotent) before each rollout;
+- a Caddy frontend serving the built SPA;
+- an Ingress routing `/api` to the backend and everything else to the frontend;
+- a nightly backup CronJob at 03:30, staggered from canst's.
+
+Its secrets are vaulted in `ansible/group_vars/all.yml`:
+- `aoe2tm_staging_{migrate,app,backup}_db_password`
+- `aoe2tm_staging_paseto_key`
+- `aoe2tm_staging_restic_password`
+
+`ansible/roles/aoe2tm` renders them into an `aoe2tm-config` Secret, holding the
+backend's `config.toml`, and an `aoe2tm-config-migrate` Secret, holding
+`migrate.toml`. On a fresh setup:
+
+1. `make tf-apply` for the `aoe2tm` DNS record.
+2. `make ansible-apply`. It creates the `aoe2tm_staging` database and its three
+   roles, the two config Secrets, the backup Secret and the ghcr pull secret
+   in `aoe2tm-staging`.
+3. Wire up the deploy flow (see [GitOps](#gitops-flux-cd)):
+   - give this repo Read access to both the `aoe2tm-backend` and
+     `aoe2tm-frontend` packages;
+   - add the `DEPLOY_APP_*` secrets to the app repo.
+4. Create the first admin. aoe2tm has no admin bootstrap route; its CLI sets
+   a password and the admin flag:
+   ```sh
+   k3s kubectl exec -it -n aoe2tm-staging deploy/aoe2tm-backend -- \
+     aoe2tm-backend --config /etc/aoe2tm/config.toml admin create --username <you> --email <you@example.com>
+   ```
+
+Without further setup, only that admin can log in. Each integration is
+off until its entry in `aoe2tm_environments` is added (the comment there
+lists the shapes), vaulted, and applied with `make ansible-apply`; the
+backend picks it up on its next restart:
+- Discord, Xbox and Steam login;
+- SMTP, for Steam sign-up emails;
+- Challonge and Google Sheets import;
+- an S3 bucket, for replays.
+
+The providers' redirect URIs are
+`https://aoe2tm.zetatwo.dev/api/auth/{discord,xbox}/callback`. Restart the
+backend with `k3s kubectl rollout restart -n aoe2tm-staging deploy/aoe2tm-backend`.
+
 ## One-time aoe2-groups-proxy production secrets bootstrap
 
 1. Export the runtime service account's key and fetch the real

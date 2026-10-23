@@ -1,0 +1,62 @@
+# Two Ingresses on one host. Traefik's errors middleware rewrites *every*
+# 401 passing through it into the sign-in redirect — including the app's
+# own 401s (e.g. "not logged in to aoe2tm"), which an API client must see
+# as-is. So only page paths get the errors middleware; /api gets the auth
+# gate alone and passes the app's responses through untouched.
+# (docs/app-setup.md#gated-apps-with-an-api)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aoe2tm
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-errors@kubernetescrd,auth-oauth2-proxy-auth-collaborators@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - aoe2tm.zetatwo.dev
+      secretName: aoe2tm-staging-tls
+  rules:
+    - host: aoe2tm.zetatwo.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aoe2tm-frontend
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aoe2tm-api
+  annotations:
+    # Auth only, no errors middleware (see above). No cert-manager
+    # annotation: it reuses the certificate the `aoe2tm` Ingress requests.
+    traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-auth-collaborators@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - aoe2tm.zetatwo.dev
+      secretName: aoe2tm-staging-tls
+  rules:
+    - host: aoe2tm.zetatwo.dev
+      http:
+        paths:
+          # Same host as the SPA: single origin, so aoe2tm's auth cookies
+          # stay same-site with no CORS. Traefik's longer-rule-wins
+          # priority sends /api here rather than to the `aoe2tm` Ingress.
+          # This includes the login providers' callbacks
+          # (/api/auth/<provider>/callback), which arrive with the gate's
+          # session cookie like any other request.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: aoe2tm-backend
+                port:
+                  number: 3000

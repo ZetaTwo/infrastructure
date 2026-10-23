@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aoe2tm-frontend
+spec:
+  selector:
+    app: aoe2tm-frontend
+  ports:
+    - port: 80
+      targetPort: 80

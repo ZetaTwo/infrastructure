@@ -133,6 +133,7 @@ ghcr_pull_secret_namespaces:
   - aoe2-groups-proxy
   - aoe2-groups-proxy-staging
   - aoe2-tournament-bot
+  - aoe2tm-staging
   - canst-staging
 
 # GitHub PAT, read:packages scope (classic — GHCR doesn't support
@@ -202,6 +203,13 @@ backup_targets:
       database: canst_staging
       user: canst_staging_backup
       password: "{{ canst_staging_backup_db_password }}"
+  - name: aoe2tm-staging
+    namespace: aoe2tm-staging
+    restic_password: "{{ aoe2tm_staging_restic_password }}"
+    postgres:
+      database: aoe2tm_staging
+      user: aoe2tm_staging_backup
+      password: "{{ aoe2tm_staging_backup_db_password }}"
 
 # Shared Postgres (k8s/postgres/, ansible/roles/postgres — docs/app-setup.md
 # #shared-postgres). Each postgres_databases entry gets a database plus three
@@ -216,6 +224,10 @@ postgres_databases:
     migrate_password: "{{ canst_staging_migrate_db_password }}"
     app_password: "{{ canst_staging_app_db_password }}"
     backup_password: "{{ canst_staging_backup_db_password }}"
+  - name: aoe2tm_staging
+    migrate_password: "{{ aoe2tm_staging_migrate_db_password }}"
+    app_password: "{{ aoe2tm_staging_app_db_password }}"
+    backup_password: "{{ aoe2tm_staging_backup_db_password }}"
 
 # ansible/roles/canst: one namespace + two Secrets (canst-config for the main
 # container's config.toml, canst-config-migrate for the migrate initContainer's
@@ -232,6 +244,28 @@ canst_environments:
     app_db_password: "{{ canst_staging_app_db_password }}"
     migrate_db_password: "{{ canst_staging_migrate_db_password }}"
     paseto_key: "{{ canst_staging_paseto_key }}"
+
+# ansible/roles/aoe2tm: same shape as canst_environments (two Secrets per
+# environment, aoe2tm-config and aoe2tm-config-migrate). The integrations are
+# optional: each one, once added (vaulted values, then make ansible-apply),
+# turns that feature on in the app. Redirect URIs to register with the
+# providers are https://<domain>/api/auth/{discord,xbox}/callback.
+#   discord:       {client_id: ..., client_secret: ...}
+#   xbox:          {client_id: ..., client_secret: ...}   (Microsoft Entra app)
+#   steam:         {} or {api_key: ...}                     (no app registration)
+#   challonge:     {api_key: ...}
+#   google_sheets: {api_key: ...}
+#   smtp:          {host: ..., port: 587, username: ..., password: ..., from: ...}
+#   s3:            {bucket: ..., region: ..., endpoint: ..., access_key_id: ..., secret_access_key: ...}
+aoe2tm_environments:
+  - name: staging
+    namespace: aoe2tm-staging
+    domain: aoe2tm.zetatwo.dev
+    seed: true
+    db_name: aoe2tm_staging
+    app_db_password: "{{ aoe2tm_staging_app_db_password }}"
+    migrate_db_password: "{{ aoe2tm_staging_migrate_db_password }}"
+    paseto_key: "{{ aoe2tm_staging_paseto_key }}"
 
 postgres_superuser_password: !vault |
           $ANSIBLE_VAULT;1.1;AES256
@@ -281,3 +315,43 @@ canst_staging_restic_password: !vault |
           3130633938633865630a663461303162306238373863376138356263396461393535623534356234
           34326137636430376231353937383433626165363761353165376131396531396130656665633931
           3839356331353336643336373938303830353563643365383462
+aoe2tm_staging_migrate_db_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          62353139613036373362306563346537316639663934613139363434633066636262373530616231
+          3163353134323830656232393266323635343162653466330a343965363330303433396630373931
+          34336362663139373739373334613038353535303936613362363639326635366131633939613438
+          6430316137626235350a393235376339333938363930353065386363316566643238653464363433
+          63323966653438333238336361336237396338336135613261383231396232623834386435643261
+          3935663434643031323833306432353333363037653037303963
+aoe2tm_staging_app_db_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          30643965376136363363316232363439626638326566656135303763646339333037663735613632
+          3663373265613736326134663262393364396136316464390a346164336435353336316532616563
+          61303865363262643833326564646530633961373163646538323538333331316231656362613632
+          3263326239343138360a396430373331346333356264646665373434653230623330656333613365
+          62316165643461313934613366656262346163356533373663333266616334366433343535366331
+          3561326364343639306235613737383435333030393262366633
+aoe2tm_staging_backup_db_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          65633866313730303835643165386366343964343037313735616235396361653530343261353564
+          6139393132376366666264346537363833313965646165350a613865333963353864333435386337
+          39633065356135653133303161343361383330626132656463343435653861323934633266616238
+          3939383235633766330a373261313462393834323232633031326533303932653633303835393637
+          36306534323038373832373462333233373033383966636366323531656162376563333530396361
+          3634386534633537323534643633306430363965346662343635
+aoe2tm_staging_restic_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          32636537346334343764346536373439316538313963373733363835346234376136376162303738
+          6239313637653537316139393239356533313562356666370a386361363135353165663434656334
+          36383664623530666633323263643930383631346163373761666564656535313032613563356431
+          3639316262333735390a313562643866626163343966303434336334646338626532656237636233
+          33383439366463643735326234376535373932386330636436303535313361353661316665656662
+          6565393463626534393135643038303864363031386533346531
+aoe2tm_staging_paseto_key: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          64316263613033663336376465616232633461633265313931623336346532663433366236386661
+          3861373738343161353863363135363263313733633038310a303332393866343936383831383131
+          63646563386232343435346135373862666130626331363037363665386634613530623761313733
+          3533663062353038650a353032346338396234623136373664306538643436343366353565643862
+          66663439663135303937363839363561346436306264346333643534623431396238393639616563
+          3434313433393364373233336333333663353237356335666538

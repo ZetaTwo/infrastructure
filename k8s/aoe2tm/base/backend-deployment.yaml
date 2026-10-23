@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aoe2tm-backend
+  labels:
+    app: aoe2tm-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aoe2tm-backend
+  template:
+    metadata:
+      labels:
+        app: aoe2tm-backend
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      # Applies pending migrations before the server starts, on every rollout.
+      # If it fails the pod never becomes Ready and the old pod keeps serving.
+      initContainers:
+        - name: migrate
+          # Always overridden by each overlay's images: newTag:.
+          image: ghcr.io/zetatwo/aoe2tm-backend:placeholder-overridden-by-overlay
+          # Its own config (migrate.toml, not config.toml): a different
+          # Postgres role with DDL rights, kept off the main container's
+          # filesystem entirely — see the migrate-config volume below.
+          args: ["--config", "/etc/aoe2tm/migrate.toml", "migrate"]
+          env:
+            - name: RUST_LOG
+              value: info
+          volumeMounts:
+            - name: migrate-config
+              mountPath: /etc/aoe2tm
+              readOnly: true
+      containers:
+        - name: aoe2tm-backend
+          image: ghcr.io/zetatwo/aoe2tm-backend:placeholder-overridden-by-overlay
+          args: ["--config", "/etc/aoe2tm/config.toml"]
+          ports:
+            - containerPort: 3000
+          env:
+            - name: RUST_LOG
+              value: info
+          volumeMounts:
+            - name: config
+              mountPath: /etc/aoe2tm
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 3000
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 3000
+          # A plain axum server; replay uploads are buffered in memory up to
+          # 30 MB each, which is what the limit leaves room for.
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+      volumes:
+        # config.toml (database, paseto_key, ...), rendered by
+        # ansible/roles/aoe2tm — never in git. Uses a DML-only Postgres role.
+        - name: config
+          secret:
+            secretName: aoe2tm-config
+        # migrate.toml: a separate Secret (not just a separate key in the one
+        # above) so this DDL-owner credential never lands on the main
+        # container's filesystem — see ansible/roles/aoe2tm.
+        - name: migrate-config
+          secret:
+            secretName: aoe2tm-config-migrate
