@@ -113,7 +113,6 @@ oauth2_proxy_collaborator_emails: !vault |
           37366661386330626632633566666362636666356339633736373130393633623137
 
 
-
 # Per-app auth policies: each becomes Middleware
 # auth-oauth2-proxy-<name>@kubernetescrd (ansible/roles/oauth2_proxy),
 # allowing only the listed Google account emails (comma-separated). Email
