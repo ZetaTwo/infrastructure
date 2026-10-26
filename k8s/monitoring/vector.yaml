@@ -151,6 +151,10 @@ spec:
           type: prometheus_remote_write
           inputs: [node_exporter, kube_state_metrics, internal_metrics]
           endpoint: http://vmsingle.monitoring.svc.cluster.local:8428/api/v1/write
+          # The default check GETs `endpoint` and wants 200, but
+          # VictoriaMetrics answers 204 there; /health returns 200.
+          healthcheck:
+            uri: http://vmsingle.monitoring.svc.cluster.local:8428/health
         prom_exporter:
           type: prometheus_exporter
           inputs: [node_exporter, kube_state_metrics, internal_metrics]

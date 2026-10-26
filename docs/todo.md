@@ -16,14 +16,6 @@ Podman+Caddy to k3s, rather than carried over 1:1:
 - **Repeat backup restore drills.** First drilled 2026-10-04 on
   canst-staging ([Backups](backups.md#restore)), but against a database
   with no user data yet. Repeat periodically, and once real data exists.
-- **Vector's `victoriametrics` sink healthcheck.** Vector logs
-  `Healthcheck failed: Unexpected status: 204 No Content` for the
-  `prometheus_remote_write` sink (`k8s/monitoring/vector.yaml`) on every
-  startup — cosmetic, not a real failure: VictoriaMetrics correctly
-  returns `204` on a successful remote-write, but Vector's healthcheck
-  probe doesn't accept that status as healthy. Metrics still flow fine;
-  worth a fix (or a Vector config option to relax/skip this healthcheck)
-  if the log noise becomes annoying.
 - **aoe2tm production.** Only `k8s/aoe2tm/overlays/staging/` exists. Production
   needs an overlay (`aoe2tm.zeta-two.com`, public, no `seed` initContainer), an
   `aoe2tm` database and environment entry, its own secrets and backup target,
