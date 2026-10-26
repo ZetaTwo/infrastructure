@@ -1,0 +1,12 @@
+# In-cluster only, no Ingress: apps POST to
+# http://notify.notify.svc.cluster.local:8000/notify/apps (docs/messaging.md).
+apiVersion: v1
+kind: Service
+metadata:
+  name: notify
+spec:
+  selector:
+    app: apprise
+  ports:
+    - port: 8000
+      targetPort: 8000

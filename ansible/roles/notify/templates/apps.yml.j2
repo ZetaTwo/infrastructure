@@ -1,0 +1,11 @@
+# Rendered by ansible/roles/notify from notify_targets. Apprise sends a
+# message to every target carrying the request's tag. overflow: split
+# breaks long messages up for Discord's 2000-character cap; email has no
+# cap, so it's unaffected.
+version: 1
+urls:
+{% for target in notify_targets %}
+  - {{ target.url | to_json }}:
+      - tag: {{ target.tags | join(', ') | to_json }}
+        overflow: split
+{% endfor %}

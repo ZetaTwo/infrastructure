@@ -40,6 +40,17 @@ grafana_admin_password: !vault |
           3233643931656463340a383038323865643061333062653331343439383361363166356237326663
           3230
 
+# ansible/roles/notify: where apps' operational messages go, by tag
+# (docs/messaging.md). Each target is an Apprise URL. A Discord webhook URL
+# works as-is; email is a mailtos:// URL through Postmark's internal server:
+#   mailtos://<token>:<token>@mail.zeta-two.com:587?smtp=smtp.postmarkapp.com&from=infra@mail.zeta-two.com&name=Infra&to=<you>
+# Both Discord tags go to the alerts channel until dedicated #reports and
+# #app-notices webhooks are vaulted here:
+#   ansible-vault encrypt_string '<url>' --name notify_<x>_url --vault-password-file .vault_pass
+notify_targets:
+  - url: "{{ alertmanager_discord_webhook_url }}"
+    tags: [report, notice]
+
 # Flux and per-app secrets are vault-encrypted FILES, not vars here:
 #   ansible/roles/flux/files/flux-infrastructure-deploy-key             (encrypted)
 #   ansible/roles/flux/files/flux-infrastructure-deploy-key.pub         (plain)

@@ -8,4 +8,5 @@ resources:
   - auth
   - canst/overlays/staging
   - monitoring
+  - notify
   - postgres

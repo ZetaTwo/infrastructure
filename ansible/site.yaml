@@ -18,6 +18,7 @@
     - aoe2_tournament_bot
     - oauth2_proxy
     - monitoring
+    - notify
     - postgres
     - canst
     - aoe2tm

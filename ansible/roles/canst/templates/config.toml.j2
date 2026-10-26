@@ -14,6 +14,11 @@ url = "postgres://{{ item.db_name }}_app:{{ item.app_db_password | urlencode }}@
 [metrics]
 # Prometheus metrics, scraped by vmsingle; the Deployment declares this port.
 listen_addr = "0.0.0.0:9000"
+
+# Operational messages to the operator via the cluster's Apprise API
+# (ansible/roles/notify). Not a secret: the routing lives there.
+[notify]
+url = "http://notify.notify.svc.cluster.local:8000/notify/apps"
 {% if item.seed | default(false) %}
 
 # Lets the staging-only seed initContainer insert test data.

@@ -1,0 +1,72 @@
+# Apprise API: fans apps' operational messages (reports, notices) out to
+# Discord and email by tag (docs/messaging.md). Stateless: the routing is
+# one config file from the apprise-config Secret, which
+# ansible/roles/notify renders and restarts this Deployment on change.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apprise
+  labels:
+    app: apprise
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apprise
+  template:
+    metadata:
+      labels:
+        app: apprise
+    spec:
+      containers:
+        - name: apprise
+          image: docker.io/caronc/apprise:2.0.1
+          env:
+            # Reads /config/<key>.yml, here the key `apps`.
+            - name: APPRISE_STATEFUL_MODE
+              value: simple
+            # Denies reading or changing config over the API, so no pod can
+            # fetch the webhook URLs. Sending still works.
+            - name: APPRISE_CONFIG_LOCK
+              value: "yes"
+            - name: APPRISE_WORKER_COUNT
+              value: "1"
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            # /config must be writable (/status fails otherwise), so it's
+            # an emptyDir with only the routing file from the Secret on top.
+            # A subPath mount never sees Secret updates: hence the restart
+            # in ansible/roles/notify.
+            - name: config
+              mountPath: /config
+            - name: routing
+              mountPath: /config/apps.yml
+              subPath: apps.yml
+              readOnly: true
+            - name: attach
+              mountPath: /attach
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: 8000
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: 8000
+          # ~135Mi resident with one worker.
+          resources:
+            requests:
+              cpu: 10m
+              memory: 160Mi
+            limits:
+              memory: 256Mi
+      volumes:
+        - name: config
+          emptyDir: {}
+        - name: attach
+          emptyDir: {}
+        - name: routing
+          secret:
+            secretName: apprise-config

@@ -1,0 +1,26 @@
+---
+# Routing for the Apprise API in k8s/notify (docs/messaging.md): which
+# targets each tag fans out to, from notify_targets. It's applied here, not
+# from git, because the target URLs carry webhook tokens and SMTP
+# credentials.
+- name: Ensure notify namespace exists
+  kubernetes.core.k8s:
+    name: notify
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Apply Apprise routing secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: apprise-config
+        namespace: notify
+      type: Opaque
+      stringData:
+        apps.yml: "{{ lookup('template', 'apps.yml.j2') }}"
+  no_log: true
+  notify: Restart Apprise

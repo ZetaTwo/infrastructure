@@ -1,0 +1,16 @@
+---
+# The Secret is mounted with subPath, which never sees updates. Skipped
+# while the Deployment doesn't exist yet (first bootstrap, before Flux).
+- name: Restart Apprise
+  kubernetes.core.k8s:
+    state: patched
+    api_version: apps/v1
+    kind: Deployment
+    name: apprise
+    namespace: notify
+    definition:
+      spec:
+        template:
+          metadata:
+            annotations:
+              kubectl.kubernetes.io/restartedAt: "{{ now(utc=true).isoformat() }}"
