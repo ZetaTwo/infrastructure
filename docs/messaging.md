@@ -8,10 +8,8 @@ canst is the first app wired up: password reset emails, and a notice for
 each new prompt suggestion.
 
 **Status:** live. canst staging sends email through Postmark, and Apprise
-posts to Discord and emails the operator. Not done yet: `notice` and
-`report` both go to the alerts Discord channel until dedicated
-`#app-notices` and `#reports` webhooks exist
-([Postmark bootstrap](#postmark-bootstrap), step 4).
+posts notices and reports to their own Discord channels and emails
+reports to the operator.
 
 ## Decision
 
@@ -124,10 +122,13 @@ Postmark `internal` server's SMTP credential.
   never sees updates, so the role restarts Apprise whenever it changes
   the Secret.
 
-  | Tag | Today | Target state |
+  | Tag | Goes to | Discord notifications |
   | --- | --- | --- |
-  | `notice` | the alerts Discord channel | Discord `#app-notices` + email |
-  | `report` | the alerts Discord channel | Discord `#reports` + email |
+  | `notice` | Discord notifications channel | default: worth seeing, rarely urgent |
+  | `report` | Discord `#reports` + email | muted: read at leisure |
+
+  Infra alerts stay in their own channel (see
+  [Alerting doesn't go through Apprise](#alerting-doesnt-go-through-apprise)).
 
   `overflow: split` breaks long messages up for Discord's 2000-character
   cap. Email gets the full text.
