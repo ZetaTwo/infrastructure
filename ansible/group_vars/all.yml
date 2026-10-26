@@ -42,8 +42,9 @@ grafana_admin_password: !vault |
 
 # ansible/roles/notify: where apps' operational messages go, by tag
 # (docs/messaging.md). Each target is an Apprise URL. A Discord webhook URL
-# works as-is; email is a mailtos:// URL through Postmark's internal server:
-#   mailtos://<token>:<token>@mail.zeta-two.com:587?smtp=smtp.postmarkapp.com&from=infra@mail.zeta-two.com&name=Infra&to=<you>
+# works as-is; email is a mailtos:// URL through Postmark's internal server,
+# sending from notify.zetatwo.dev:
+#   mailtos://<token>:<token>@notify.zetatwo.dev:587?smtp=smtp.postmarkapp.com&from=noreply@notify.zetatwo.dev&name=Infra&to=<you>
 # Both Discord tags go to the alerts channel until dedicated #reports and
 # #app-notices webhooks are vaulted here:
 #   ansible-vault encrypt_string '<url>' --name notify_<x>_url --vault-password-file .vault_pass
