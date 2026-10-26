@@ -45,7 +45,7 @@ per-app isolated secret" pattern already used for `ghcr_pull_token`:
 
 - **Shared**: one S3 access/secret key pair for the bucket
   (`backups_s3_access_key`/`backups_s3_secret_key` in
-  `ansible/group_vars/all.yml`), reused by every app's backup CronJob.
+  `ansible/group_vars/all/backups.yml`), reused by every app's backup CronJob.
 - **Per-app**: each app gets its own restic repository (its own path
   prefix within the bucket) and its own unique `RESTIC_PASSWORD`. Even
   though every app shares bucket-level S3 access, apps can't read, restore,
@@ -53,7 +53,7 @@ per-app isolated secret" pattern already used for `ghcr_pull_token`:
   key.
 
 Wiring: `ansible/roles/backups/tasks/main.yml` loops over `backup_targets`
-(`ansible/group_vars/all.yml`, empty until a real app registers) and
+(`ansible/group_vars/all/backups.yml`) and
 applies one `<app>-backup-secrets` Secret per entry, containing
 `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (restic reads these natively
 for its S3 backend), and `RESTIC_PASSWORD`. An entry with a `postgres:`
@@ -72,7 +72,7 @@ access, ever reaches an app namespace.
      | ansible-vault encrypt_string --stdin-name <app>_restic_password \
        --vault-password-file ansible/.vault_pass
    ```
-   Append the resulting block to `ansible/group_vars/all.yml`.
+   Append the resulting block to the app's `ansible/group_vars/all/<app>.yml`.
 2. Add an entry to `backup_targets`, pointing `postgres.user` at the
    database's `<db>_backup` role (from `postgres_databases` —
    [Shared Postgres](app-setup.md#shared-postgres)):

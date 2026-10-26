@@ -82,8 +82,9 @@ depends on the ones before it.
 2. **DNS**: an A record in `terraform/dns.tf`, then `make tf-apply`. Do this
    before the Ingress exists, so cert-manager's first HTTP-01 challenge
    resolves.
-3. **Secrets, database, backups** in `ansible/group_vars/all.yml` and an
-   app role (`ansible/roles/<app>`, added to `site.yaml`): vaulted secrets,
+3. **Secrets, database, backups** in `ansible/group_vars/all/` and an app role
+   (`ansible/roles/<app>`, added to `site.yaml`): a `<app>.yml` there with
+   the app's environments and vaulted secrets,
    a `postgres_databases` entry ([Shared Postgres](#shared-postgres)), a
    `backup_targets` entry ([Backups](backups.md)), and the namespace in
    `ghcr_pull_secret_namespaces`. Then `make ansible-apply`. This creates
@@ -165,7 +166,7 @@ exists for pulling private `ghcr.io` images — reference it from any app's
 Deployment with `imagePullSecrets: [{name: ghcr-pull-secret}]` (see
 `k8s/aoe2-groups-proxy/base/deployment.yaml`). Since k8s Secrets can't be
 referenced across namespaces, the role loops over
-`ghcr_pull_secret_namespaces` (`group_vars/all.yml`) and creates one copy
+`ghcr_pull_secret_namespaces` (`ansible/group_vars/all/cluster.yml`) and creates one copy
 of the same underlying token per namespace — add a new app's namespace to
 that list if it needs private image pulls, no other Ansible changes
 needed. Note that GitHub package visibility is one-way — once a package is
@@ -359,9 +360,9 @@ cross the pod network, so they're unaffected.
 
 1. Generating and vault-encrypting three passwords — `<db>_migrate_db_password`,
    `<db>_app_db_password`, `<db>_backup_db_password` (same command as the
-   restic password in [Backups](backups.md)) — and appending them to
-   `ansible/group_vars/all.yml`.
-2. Adding an entry to `postgres_databases`:
+   restic password in [Backups](backups.md)) — and appending them to the
+   app's `ansible/group_vars/all/<app>.yml`.
+2. Adding an entry to `postgres_databases` (`ansible/group_vars/all/postgres.yml`):
    ```yaml
    postgres_databases:
      - name: <db>
@@ -397,9 +398,11 @@ applies pending migrations before each rollout, a Caddy frontend serving
 the built SPA, an Ingress routing `/api` to the backend and everything else
 to the frontend, and a nightly backup CronJob.
 
-Its secrets are already vaulted in `ansible/group_vars/all.yml`
-(`canst_staging_db_password`, `canst_staging_paseto_key`,
-`canst_staging_restic_password`, plus `postgres_superuser_password`).
+Its secrets are already vaulted in `ansible/group_vars/all/canst.yml`
+(`canst_staging_{migrate,app,backup}_db_password`,
+`canst_staging_paseto_key`, `canst_staging_restic_password`,
+`canst_staging_postmark_token`), plus `postgres_superuser_password` in
+`postgres.yml`.
 `ansible/roles/canst` renders them into a `canst-config` Secret holding
 the backend's `config.toml`. On a fresh setup:
 
@@ -428,7 +431,7 @@ gated by the `collaborators` policy, from `k8s/aoe2tm/` (`base/` plus
 - an Ingress routing `/api` to the backend and everything else to the frontend;
 - a nightly backup CronJob at 03:30, staggered from canst's.
 
-Its secrets are vaulted in `ansible/group_vars/all.yml`:
+Its secrets are vaulted in `ansible/group_vars/all/aoe2tm.yml`:
 - `aoe2tm_staging_{migrate,app,backup}_db_password`
 - `aoe2tm_staging_paseto_key`
 - `aoe2tm_staging_restic_password`
@@ -565,8 +568,8 @@ monitoring`):
    ansible-vault encrypt_string '<a generated password>' \
      --name grafana_admin_password --vault-password-file ansible/.vault_pass
    ```
-3. Append both resulting blocks to `ansible/group_vars/all.yml` (alongside
-   `ghcr_pull_token`/`zetatwo_password_hash`), then `make ansible-apply`.
+3. Append both resulting blocks to `ansible/group_vars/all/monitoring.yml`, then
+   `make ansible-apply`.
 
 Grafana's admin login here is a break-glass fallback only — normal access
 goes through the oauth2-proxy `admin` policy (see
@@ -583,7 +586,7 @@ Middleware sets), so there's no second, separate login screen.
 Workspace, or a Google account on another address). It's the cluster's one
 login for every non-public app. Access is keyed on the account's verified
 email and defined as named **policies** (`oauth2_proxy_policies` in
-`ansible/group_vars/all.yml`). Each policy is its own Traefik Middleware,
+`ansible/group_vars/all/auth.yml`). Each policy is its own Traefik Middleware,
 `auth-oauth2-proxy-auth-<policy>`, and only lets through the emails it
 lists. Currently `admin` (Grafana) and `collaborators` (staging apps).
 
@@ -632,7 +635,7 @@ one) behind the gate.
    ansible-vault encrypt_string 'a@example.com,b@example.com' \
      --name oauth2_proxy_collaborator_emails --vault-password-file ansible/.vault_pass
    ```
-4. Put all resulting blocks in `ansible/group_vars/all.yml`, then
+4. Put all resulting blocks in `ansible/group_vars/all/auth.yml`, then
    `make ansible-apply`.
 
 **An app opts in** by adding one annotation to its Ingress, naming the

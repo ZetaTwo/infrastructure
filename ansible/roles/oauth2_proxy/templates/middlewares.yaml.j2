@@ -1,5 +1,5 @@
 # One Traefik ForwardAuth gate per access policy (oauth2_proxy_policies in
-# group_vars/all.yml). An Ingress opts in with (errors before auth — order
+# group_vars/all/auth.yml). An Ingress opts in with (errors before auth — order
 # matters, forwardAuth short-circuits the chain):
 #   traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-errors@kubernetescrd,auth-oauth2-proxy-auth-<policy>@kubernetescrd
 # Rendered by Ansible, not committed under k8s/, so the email lists stay

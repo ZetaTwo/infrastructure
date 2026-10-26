@@ -1,0 +1,9 @@
+---
+# Per-environment loop for ansible/roles/aoe2_groups_proxy: each entry gets
+# its own namespace + Secret from files/<name>/. Staging deliberately
+# reuses production's GCP service account and Sheet (docs/app-setup.md).
+aoe2_groups_proxy_environments:
+  - name: production
+    namespace: aoe2-groups-proxy
+  - name: staging
+    namespace: aoe2-groups-proxy-staging

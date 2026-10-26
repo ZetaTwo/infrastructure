@@ -75,10 +75,10 @@ If the server ever needs to be rebuilt from nothing: `make tf-apply` then
 deployed by `make ansible-apply` — see [App setup](app-setup.md#gitops-flux-cd).
 
 `ansible/roles/k3s` installs k3s (pinned via `k3s_version` in
-`ansible/group_vars/all.yml`) and cert-manager (pinned via
+`ansible/group_vars/all/cluster.yml`) and cert-manager (pinned via
 `cert_manager_version`), and deploys a `ClusterIssuer` for Let's Encrypt.
 `ansible/roles/flux` installs Flux CD (pinned via `flux_version`) the same
-way. Bumping any of these versions in `group_vars/all.yml` and re-running
+way. Bumping any of these versions in `cluster.yml` and re-running
 `make ansible-apply` performs a controlled upgrade; re-running with no
 version change is a no-op.
 
@@ -171,8 +171,8 @@ need a bootstrap step: `ansible/roles/flux` fetches them live from
    ansible-vault encrypt_string '<the token>' \
      --name ghcr_pull_token --vault-password-file ansible/.vault_pass
    ```
-   Append the resulting block to `group_vars/all.yml`.
-3. Confirm `ghcr_pull_username` in `group_vars/all.yml` matches the account
+   Append the resulting block to `ansible/group_vars/all/cluster.yml`.
+3. Confirm `ghcr_pull_username` in the same file matches the account
    that owns the token.
 4. `make ansible-apply`.
 
@@ -191,8 +191,8 @@ bucket — see [Backups](backups.md) for why.
    ansible-vault encrypt_string '<secret key>' \
      --name backups_s3_secret_key --vault-password-file ansible/.vault_pass
    ```
-   Append the resulting blocks to `group_vars/all.yml`.
-3. Confirm `backups_s3_endpoint`/`backups_s3_bucket` in `group_vars/all.yml`
+   Append the resulting blocks to `ansible/group_vars/all/backups.yml`.
+3. Confirm `backups_s3_endpoint`/`backups_s3_bucket` in the same file
    match what you created.
 4. `make ansible-apply`.
 
@@ -213,7 +213,7 @@ ansible-vault encrypt_string '<the hash>' --name zetatwo_password_hash \
   --vault-password-file ansible/.vault_pass
 ```
 
-Append the resulting block to `ansible/group_vars/all.yml`.
+Append the resulting block to `ansible/group_vars/all/cluster.yml`.
 
 Ansible itself still connects and manages the box as `root` over SSH
 (`ansible_user: root` in the generated inventory) — `zetatwo` is for

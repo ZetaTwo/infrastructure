@@ -113,7 +113,7 @@ Postmark `internal` server's SMTP credential.
   `notify.notify.svc.cluster.local:8000` and no Ingress. It's
   stateless: `/config` is an emptyDir, with only `apps.yml` mounted from
   the `apprise-config` Secret.
-- **Routing:** `notify_targets` in `ansible/group_vars/all.yml`, rendered
+- **Routing:** `notify_targets` in `ansible/group_vars/all/notify.yml`, rendered
   by `ansible/roles/notify` into Apprise's YAML config under the key
   `apps`. Each target is an Apprise URL with the tags it receives. A
   Discord webhook URL works as-is, and email is a `mailtos://` URL (see

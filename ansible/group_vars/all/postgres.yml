@@ -1,0 +1,27 @@
+---
+# Shared Postgres (k8s/postgres/, ansible/roles/postgres — docs/app-setup.md
+# #shared-postgres). Each postgres_databases entry gets a database plus three
+# roles: <name>_migrate (owns the database — full DDL, used only by the
+# `migrate` initContainer), <name>_app (DML only, used by the running app),
+# and <name>_backup (read-only, used by pg_dump). Passwords are 32 random
+# bytes:
+#   python3 -c "import secrets, base64; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())" \
+#     | ansible-vault encrypt_string --stdin-name <name> --vault-password-file .vault_pass
+postgres_databases:
+  - name: canst_staging
+    migrate_password: "{{ canst_staging_migrate_db_password }}"
+    app_password: "{{ canst_staging_app_db_password }}"
+    backup_password: "{{ canst_staging_backup_db_password }}"
+  - name: aoe2tm_staging
+    migrate_password: "{{ aoe2tm_staging_migrate_db_password }}"
+    app_password: "{{ aoe2tm_staging_app_db_password }}"
+    backup_password: "{{ aoe2tm_staging_backup_db_password }}"
+
+postgres_superuser_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          38356466663663646663363438623863393336633930316530636132303962373439343866383262
+          3863373332653531613432363237643965336464626364300a306134376563366365623764326130
+          37623165616438373638616134353137393635623831313739666132656438653532366637636331
+          6163653638376638350a353236313261653666336362353639313031313630626266323263323563
+          39376336383031353232376165346164386338613838633261376135643636623365333432356638
+          6136353831393862383065326462383835633565396163616434

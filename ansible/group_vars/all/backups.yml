@@ -1,0 +1,48 @@
+---
+# Shared S3 credentials for the backups bucket (docs/backups.md,
+# docs/cluster-setup.md). backups_s3_endpoint/bucket aren't secret; the
+# access/secret key are.
+backups_s3_endpoint: "https://fsn1.your-objectstorage.com"
+backups_s3_bucket: "zetatwo-infra-backups"
+#   ansible-vault encrypt_string '<access key>' --name backups_s3_access_key --vault-password-file .vault_pass
+#   ansible-vault encrypt_string '<secret key>' --name backups_s3_secret_key --vault-password-file .vault_pass
+
+backups_s3_access_key: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          64313234336633393134343732666163373134316365323533623635653637343365306335656662
+          3264346336353462633466353462353932363637363362610a613764353539636266363035663732
+          36646161343864306131376334386233363936663631616633383439363066303665393636373733
+          3836336233633732320a353464633761336231353238303437383563366466633638313635623164
+          34366166316534643763316539366566393532306136623537666334396563633532
+
+backups_s3_secret_key: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          66303135333235616130393930366332653033616430316463363939323938653835356132663662
+          3630316134643363643136663765643838393331373439350a653666646532663737313731616631
+          65366638353736643962323264363362616235366664333764636564363536373632393531323664
+          3161383363376631340a666536613037646566383934383836633838646531333736363938656530
+          65326531656337323631666130666531386562653938363337313563313966633130626565643233
+          3664346566316435396537316430663439653363363361343432
+
+# ansible/roles/backups loops over this — one Secret per entry, in the
+# app's own namespace, with the shared S3 creds above plus its own
+# restic_password (see docs/backups.md's "Adding backups for a new
+# stateful app"). A `postgres:` entry is for a database on the shared
+# Postgres: the Secret then also carries PGHOST/PGUSER/PGDATABASE/PGPASSWORD.
+# `user` is the read-only role pg_dump connects as (ansible/roles/postgres) —
+# distinct from the app's own runtime role.
+backup_targets:
+  - name: canst-staging
+    namespace: canst-staging
+    restic_password: "{{ canst_staging_restic_password }}"
+    postgres:
+      database: canst_staging
+      user: canst_staging_backup
+      password: "{{ canst_staging_backup_db_password }}"
+  - name: aoe2tm-staging
+    namespace: aoe2tm-staging
+    restic_password: "{{ aoe2tm_staging_restic_password }}"
+    postgres:
+      database: aoe2tm_staging
+      user: aoe2tm_staging_backup
+      password: "{{ aoe2tm_staging_backup_db_password }}"
