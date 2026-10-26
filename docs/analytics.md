@@ -70,6 +70,8 @@ A pod is scraped when:
   `prometheus.io/port: "<port>"`, and
 - that port is a declared `containerPort` (`keep_if_equal`), serving
   `/metrics`.
+- it's not in `cert-manager`, `flux-system` or `kube-system`. Those charts
+  annotate their own pods, but nothing reads their ~3,800 series.
 
 Each series gets the pod's `app` label, `namespace` and `pod`, the same
 `app`/`namespace` as its logs in Loki. Apps serve metrics on a separate

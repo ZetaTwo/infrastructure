@@ -43,6 +43,11 @@ spec:
                 - action: keep
                   source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
                   regex: true
+                # Infra charts annotate their pods too (~3,800 series that
+                # nothing reads); only apps are wanted.
+                - action: drop
+                  source_labels: [__meta_kubernetes_namespace]
+                  regex: cert-manager|flux-system|kube-system
                 # Same `app` and `namespace` labels as the logs in Loki.
                 - source_labels: [__meta_kubernetes_pod_label_app]
                   target_label: app
