@@ -19,7 +19,8 @@ spec:
       datasource:
         url: http://vmsingle.monitoring.svc.cluster.local:8428
       remoteWrite:
-        url: http://vmsingle.monitoring.svc.cluster.local:8428/api/v1/write
+        # Base URL only: vmalert appends /api/v1/write itself.
+        url: http://vmsingle.monitoring.svc.cluster.local:8428
       notifier:
         url: http://alertmanager.monitoring.svc.cluster.local:9093
       config:
