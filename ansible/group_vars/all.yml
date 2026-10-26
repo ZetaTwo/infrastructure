@@ -245,6 +245,9 @@ postgres_databases:
 # never has the migrate role's credential sitting on its filesystem. paseto_key
 # is `openssl rand -base64 32`, vaulted like above. `seed: true` lets the
 # app's seed command run (staging only; its overlay adds the initContainer).
+# Optional `postmark_token` (the canst-<env> Postmark server's API token,
+# vaulted as canst_<env>_postmark_token) turns on [smtp] for password reset
+# emails; without it they're only logged (docs/messaging.md).
 canst_environments:
   - name: staging
     namespace: canst-staging

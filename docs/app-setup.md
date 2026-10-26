@@ -46,6 +46,10 @@ reference for a web app with a database (`backend/Dockerfile`,
   `feature_used_total` described in
   [Analytics and app metrics](analytics.md) to get the Apps dashboard and
   alerts for free.
+- **Outbound messages (optional)**: email to users over SMTP with the
+  app's own Postmark server credential (`[smtp]`), and operational
+  messages to the operator as a POST to the cluster's Apprise API
+  (`[notify]`). See [Messaging](messaging.md).
 - **Config and secrets from outside the image**: a config file mounted from
   a Secret (canst's `config.toml`) or environment variables. Ansible renders
   the Secret from vaulted values (see

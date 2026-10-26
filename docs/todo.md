@@ -37,7 +37,8 @@ Podman+Caddy to k3s, rather than carried over 1:1:
   needs an overlay (`canst.zeta-two.com`, public), a `canst` database and
   environment entry, and its own secrets and backup target. The canst repo's
   release workflow already promotes `:<sha>` images to `vX.Y.Z` tags.
-- **Outbound messaging.** Transactional email to users (Postmark, per-app
-  servers) and operational reports/warnings to Discord and email (an
-  in-cluster Apprise API service) are designed in
-  [Messaging](messaging.md) but not built. The checklist is there.
+- **Postmark bootstrap.** Messaging is built ([Messaging](messaging.md)),
+  but email waits on a Postmark account, the DKIM record and vaulted server
+  tokens ([Postmark bootstrap](messaging.md#postmark-bootstrap)). Until
+  then canst logs password-reset emails, and Apprise's `notice`/`report`
+  tags both post to the alerts Discord channel.
