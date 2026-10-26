@@ -22,6 +22,10 @@ spec:
       # Months. Long enough for feature-usage trends; ~1.4 GB per month at
       # today's series count, so ~17 GB on the node disk (HighDiskUsage).
       retentionPeriod: 12
+      # Re-reads the scrape config below when it changes; otherwise only a
+      # restart or SIGHUP picks up an edit.
+      extraArgs:
+        promscrape.configCheckInterval: 1m
       scrape:
         enabled: true
         # Replaces the chart's default jobs (apiserver, nodes, cadvisor, ...):
