@@ -10,6 +10,10 @@ log_format = "json"
 
 [database]
 url = "postgres://{{ item.db_name }}_app:{{ item.app_db_password | urlencode }}@postgres.postgres.svc.cluster.local/{{ item.db_name }}"
+
+[metrics]
+# Prometheus metrics, scraped by vmsingle; the Deployment declares this port.
+listen_addr = "0.0.0.0:9000"
 {% if item.seed | default(false) %}
 
 # Lets the staging-only seed initContainer insert test data.

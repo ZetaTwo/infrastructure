@@ -38,7 +38,14 @@ reference for a web app with a database (`backend/Dockerfile`,
   say) must log its error as a JSON `ERROR` line, not just print it.
 - **Pod label `app: <name>`** on every workload, including CronJob pod
   templates. Vector uses it as the Loki `app` label and to name the app in
-  Discord alerts.
+  Discord alerts. vmsingle uses it as the `app` label on scraped metrics.
+- **Metrics (optional, expected of web apps)**: Prometheus text on a
+  separate port (`9000`, `/metrics`), declared as a `containerPort` but not
+  in the Service, plus the pod annotations `prometheus.io/scrape: "true"`
+  and `prometheus.io/port: "9000"`. Serve the RED metrics and
+  `feature_used_total` described in
+  [Analytics and app metrics](analytics.md) to get the Apps dashboard and
+  alerts for free.
 - **Config and secrets from outside the image**: a config file mounted from
   a Secret (canst's `config.toml`) or environment variables. Ansible renders
   the Secret from vaulted values (see

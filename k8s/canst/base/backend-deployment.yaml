@@ -13,6 +13,10 @@ spec:
     metadata:
       labels:
         app: canst-backend
+      # Scraped by vmsingle (k8s/monitoring/victoria-metrics.yaml).
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9000"
     spec:
       imagePullSecrets:
         - name: ghcr-pull-secret
@@ -39,6 +43,10 @@ spec:
           args: ["--config", "/etc/canst/config.toml"]
           ports:
             - containerPort: 3000
+            # [metrics] listen_addr. Deliberately not in the Service, so no
+            # Ingress can route to it.
+            - name: metrics
+              containerPort: 9000
           env:
             - name: RUST_LOG
               value: info

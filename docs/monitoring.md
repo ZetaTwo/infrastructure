@@ -15,7 +15,7 @@ what an app has to do to fit in (JSON logs, the `app` label), see
 | Vector (DaemonSet) | `vector.yaml` | Tails every pod's logs, scrapes node_exporter, ships logs to Loki and metrics to VictoriaMetrics, posts ERROR logs to Discord | — |
 | node_exporter | `node-exporter.yaml` | Host metrics (`node_*`), plus `*.prom` textfiles such as `node_reboot_required` from `ansible/roles/reboot_required_metric` | `node-exporter.monitoring.svc.cluster.local:9100` |
 | kube-state-metrics | `kube-state-metrics.yaml` | Kubernetes object state (`kube_*`): restarts, waiting reasons, replica counts, Job and CronJob outcomes | `kube-state-metrics.monitoring.svc.cluster.local:8080` |
-| VictoriaMetrics (single) | `victoria-metrics.yaml` | Metrics storage with a Prometheus-compatible API | `vmsingle.monitoring.svc.cluster.local:8428` |
+| VictoriaMetrics (single) | `victoria-metrics.yaml` | Metrics storage with a Prometheus-compatible API, 12-month retention. Also scrapes annotated app pods ([Analytics](analytics.md)) | `vmsingle.monitoring.svc.cluster.local:8428` |
 | vmalert | `vmalert.yaml` | Evaluates metric alert rules, fires to Alertmanager | — |
 | Alertmanager | `alertmanager.yaml` | Groups metric alerts, posts them to Discord | `alertmanager.monitoring.svc.cluster.local:9093` |
 | Loki (single binary) | `loki.yaml` | Log storage, filesystem on a `local-path` PVC, 30-day retention | `loki.monitoring.svc.cluster.local:3100` |
@@ -58,8 +58,10 @@ VictoriaMetrics datasource. kube-state-metrics only runs the collectors the
 alert rules need (pods, deployments, statefulsets, daemonsets, jobs,
 cronjobs, nodes, namespaces, PVCs).
 
-**App metrics are not scraped**: no app's own `/metrics` endpoint is picked
-up. See [Limitations](#limitations).
+Apps' own metrics are scraped by vmsingle itself, not Vector: pods opt in
+with `prometheus.io/*` annotations. Those metrics feed the provisioned
+**Apps** dashboard and the `apps` alert group. See
+[Analytics and app metrics](analytics.md).
 
 ## Alerting
 
@@ -74,7 +76,7 @@ There are two independent paths to the same Discord webhook:
    path too: on failure they print a JSON `ERROR` line
    ([Backups](backups.md#cronjob-template)).
 2. **Metric alerts (vmalert → Alertmanager → Discord).** Rules in
-   `vmalert.yaml`, in two groups:
+   `vmalert.yaml`, in three groups:
 
    | Group | Alert | Fires when |
    | --- | --- | --- |
@@ -89,6 +91,8 @@ There are two independent paths to the same Discord webhook:
    | `kubernetes` | `StatefulSetUnavailable` | fewer ready replicas than desired for 15 min |
    | `kubernetes` | `JobFailed` | a Job started in the last 6 h has failed |
    | `kubernetes` | `BackupStale` (critical) | a `*-backup` CronJob hasn't succeeded in 26 h, or is over 26 h old and never has |
+   | `apps` | `AppHighErrorRate` | more than 5% of an app's requests are 5xx for 10 min ([Analytics](analytics.md#alerts)) |
+   | `apps` | `AppHighLatency` | an app's p95 latency is above 1 s for 10 min |
 
    `BackupStale` is the safety net for backups: the backup's own `ERROR`
    log line only fires when the job runs and fails, not when it never
@@ -119,8 +123,5 @@ because its file secrets backend requires a JSON object. Bootstrap steps:
 
 ## Limitations
 
-- **No app metrics.** Apps' own `/metrics` endpoints aren't scraped, so
-  there's no request rate, latency or error-rate alerting. App problems
-  surface only through `ERROR` logs or the Kubernetes state rules above.
 - Vector logs a harmless healthcheck failure for the VictoriaMetrics sink
   on every startup ([TODOs](todo.md)).

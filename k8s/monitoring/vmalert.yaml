@@ -134,3 +134,30 @@ spec:
                     severity: critical
                   annotations:
                     summary: "Backup {{ $labels.namespace }}/{{ $labels.cronjob }} has not succeeded in over 26h"
+            # Apps' own RED metrics, scraped by vmsingle (docs/analytics.md).
+            # The traffic floor (0.05 req/s, ~30 requests per 10 min) keeps a
+            # single failed request on an idle staging app from alerting.
+            - name: apps
+              interval: 1m
+              rules:
+                - alert: AppHighErrorRate
+                  expr: |
+                    (
+                      sum by (namespace, app) (rate(http_requests_total{status=~"5.."}[10m]))
+                        / sum by (namespace, app) (rate(http_requests_total[10m]))
+                    ) > 0.05
+                    and on (namespace, app) sum by (namespace, app) (rate(http_requests_total[10m])) > 0.05
+                  for: 10m
+                  labels:
+                    severity: warning
+                  annotations:
+                    summary: "{{ $labels.namespace }}/{{ $labels.app }}: {{ $value | humanizePercentage }} of requests failing with 5xx"
+                - alert: AppHighLatency
+                  expr: |
+                    histogram_quantile(0.95, sum by (namespace, app, le) (rate(http_request_duration_seconds_bucket[10m]))) > 1
+                    and on (namespace, app) sum by (namespace, app) (rate(http_requests_total[10m])) > 0.05
+                  for: 10m
+                  labels:
+                    severity: warning
+                  annotations:
+                    summary: "{{ $labels.namespace }}/{{ $labels.app }}: p95 latency {{ $value | printf \"%.2f\" }}s"

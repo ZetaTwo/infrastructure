@@ -85,3 +85,59 @@ spec:
           gnetId: 1860
           revision: 37
           datasource: VictoriaMetrics
+        # Every app's RED metrics and feature counters, picked by the
+        # namespace/app variables (docs/analytics.md).
+        apps:
+          json: |
+            {
+              "title": "Apps",
+              "uid": "apps",
+              "editable": true,
+              "schemaVersion": 39,
+              "time": {"from": "now-7d", "to": "now"},
+              "templating": {
+                "list": [
+                  {"name": "datasource", "type": "datasource", "query": "prometheus", "current": {"text": "VictoriaMetrics", "value": "VictoriaMetrics"}, "hide": 2},
+                  {"name": "namespace", "type": "query", "datasource": {"type": "prometheus", "uid": "${datasource}"}, "query": "label_values(http_requests_total, namespace)", "refresh": 2},
+                  {"name": "app", "type": "query", "datasource": {"type": "prometheus", "uid": "${datasource}"}, "query": "label_values(http_requests_total{namespace=\"$namespace\"}, app)", "refresh": 2}
+                ]
+              },
+              "panels": [
+                {
+                  "type": "timeseries", "title": "Requests per second, by route",
+                  "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+                  "datasource": {"type": "prometheus", "uid": "${datasource}"},
+                  "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+                  "targets": [{"refId": "A", "legendFormat": "{{route}}", "expr": "sum by (route) (rate(http_requests_total{namespace=\"$namespace\", app=\"$app\"}[$__rate_interval]))"}]
+                },
+                {
+                  "type": "timeseries", "title": "Share of requests failing (5xx)",
+                  "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+                  "datasource": {"type": "prometheus", "uid": "${datasource}"},
+                  "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0}, "overrides": []},
+                  "targets": [{"refId": "A", "legendFormat": "5xx", "expr": "sum(rate(http_requests_total{namespace=\"$namespace\", app=\"$app\", status=~\"5..\"}[$__rate_interval])) / sum(rate(http_requests_total{namespace=\"$namespace\", app=\"$app\"}[$__rate_interval]))"}]
+                },
+                {
+                  "type": "timeseries", "title": "p95 latency, by route",
+                  "gridPos": {"x": 0, "y": 8, "w": 24, "h": 8},
+                  "datasource": {"type": "prometheus", "uid": "${datasource}"},
+                  "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+                  "targets": [{"refId": "A", "legendFormat": "{{route}}", "expr": "histogram_quantile(0.95, sum by (route, le) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", app=\"$app\"}[$__rate_interval])))"}]
+                },
+                {
+                  "type": "bargauge", "title": "Feature use in the selected range",
+                  "gridPos": {"x": 0, "y": 16, "w": 10, "h": 12},
+                  "datasource": {"type": "prometheus", "uid": "${datasource}"},
+                  "options": {"orientation": "horizontal", "displayMode": "basic", "showUnfilled": true, "reduceOptions": {"calcs": ["lastNotNull"]}},
+                  "fieldConfig": {"defaults": {"unit": "short", "decimals": 0, "min": 0}, "overrides": []},
+                  "targets": [{"refId": "A", "legendFormat": "{{feature}}", "instant": true, "expr": "sort_desc(sum by (feature) (round(increase(feature_used_total{namespace=\"$namespace\", app=\"$app\"}[$__range]))))"}]
+                },
+                {
+                  "type": "timeseries", "title": "Feature use per day",
+                  "gridPos": {"x": 10, "y": 16, "w": 14, "h": 12},
+                  "datasource": {"type": "prometheus", "uid": "${datasource}"},
+                  "fieldConfig": {"defaults": {"unit": "short", "decimals": 0, "custom": {"drawStyle": "bars", "fillOpacity": 80, "stacking": {"mode": "normal"}}}, "overrides": []},
+                  "targets": [{"refId": "A", "legendFormat": "{{feature}}", "interval": "1d", "expr": "sum by (feature) (round(increase(feature_used_total{namespace=\"$namespace\", app=\"$app\"}[1d])))"}]
+                }
+              ]
+            }
