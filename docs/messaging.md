@@ -7,10 +7,11 @@ separate and stays as described in [Monitoring](monitoring.md#alerting).
 canst is the first app wired up: password reset emails, and a notice for
 each new prompt suggestion.
 
-**Status:** the operational path (Apprise) is live, posting to Discord.
-Email needs the one-time [Postmark bootstrap](#postmark-bootstrap). Until
-then, canst logs its emails instead of sending them, and Apprise has no
-email target.
+**Status:** live. canst staging sends email through Postmark, and Apprise
+posts to Discord and emails the operator. Not done yet: `notice` and
+`report` both go to the alerts Discord channel until dedicated
+`#app-notices` and `#reports` webhooks exist
+([Postmark bootstrap](#postmark-bootstrap), step 4).
 
 ## Decision
 
