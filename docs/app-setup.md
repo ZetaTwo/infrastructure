@@ -350,6 +350,11 @@ idempotent `psql` run inside `postgres-0` per `postgres_databases` entry
 that creates the database and all three roles if missing and resets every
 password every run, so the vaulted values stay the source of truth.
 
+A NetworkPolicy (`k8s/postgres/networkpolicy.yaml`) admits port 5432 only
+from namespaces labelled `zetatwo.dev/postgres-client: "true"`, and blocks
+all of Postgres's own egress. `k8s_exec` and `kubectl port-forward` don't
+cross the pod network, so they're unaffected.
+
 **An app gets a database** by:
 
 1. Generating and vault-encrypting three passwords — `<db>_migrate_db_password`,
@@ -369,7 +374,10 @@ password every run, so the vaulted values stay the source of truth.
    the app's own `<db>_app` role, a separate one for whatever runs
    migrations with `<db>_migrate`, so the DDL-owner credential never lands
    on the running app's filesystem), never in git.
-4. `make ansible-apply`.
+4. Labelling the app's namespace manifest
+   `zetatwo.dev/postgres-client: "true"`, or the NetworkPolicy drops its
+   connections.
+5. `make ansible-apply`.
 
 On the very first rollout, push `k8s/postgres/` and then run
 `make ansible-apply` straight away — don't wait for `postgres-0` first.

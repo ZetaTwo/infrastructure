@@ -1,0 +1,20 @@
+# Only namespaces labelled zetatwo.dev/postgres-client: "true" can reach
+# Postgres (docs/app-setup.md#shared-postgres). Ansible's k8s_exec and
+# kubectl port-forward don't go over the pod network, so they still work.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              zetatwo.dev/postgres-client: "true"
+      ports:
+        - port: 5432
+  # No egress rules: Postgres never makes outbound connections.
