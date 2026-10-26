@@ -23,15 +23,14 @@ url = "http://notify.notify.svc.cluster.local:8000/notify/apps"
 {% if item.postmark_token is defined %}
 
 # Password reset emails through this environment's Postmark server (the
-# server token is both username and password), from the environment's own
-# domain, which needs its DNS in terraform/dns.tf. Without [smtp] they're
-# only logged.
+# server token is both username and password), from the zetatwo.dev apex
+# (DNS in terraform/dns.tf). Without [smtp] they're only logged.
 [smtp]
 host = "smtp.postmarkapp.com"
 port = 587
 username = {{ item.postmark_token | to_json }}
 password = {{ item.postmark_token | to_json }}
-from = "Canst <noreply@{{ item.domain }}>"
+from = "Canst <canst@zetatwo.dev>"
 {% endif %}
 {% if item.seed | default(false) %}
 

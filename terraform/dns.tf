@@ -67,47 +67,40 @@ resource "cloudflare_dns_record" "aoe2tm_staging" {
   proxied = false # un-proxied: HTTP-01 must reach Traefik directly
 }
 
-# Outbound email via Postmark (docs/messaging.md). Each app environment sends
-# from its own staging domain (noreply@canst.zetatwo.dev), never from
-# zeta-two.com, so app mail can't affect the personal mail domain's
-# reputation. Keys are labels in zetatwo.dev. A value is the DKIM record
-# Postmark shows once the domain is added there (selector is the part before
-# ._domainkey); null until then.
+# Outbound email via Postmark (docs/messaging.md): every app sends from the
+# zetatwo.dev apex (canst@zetatwo.dev, notify@zetatwo.dev), never from
+# zeta-two.com.
+#
+# The apex's other mail records predate this and live outside Terraform:
+# SPF "v=spf1 -all", DMARC "p=reject; sp=reject; adkim=s; aspf=s", and a
+# null DKIM wildcard. They stay as they are. Postmark's DKIM signature
+# (d=zetatwo.dev) aligns even strictly, which is all DMARC needs, so only
+# mail that fails DKIM is rejected. SPF is checked on the Return-Path
+# below, not the apex, so "-all" doesn't apply to it. The selector record
+# below takes precedence over the wildcard.
 locals {
-  mail_senders = {
-    canst  = null # canst staging
-    notify = null # Apprise's operator emails
-    # canst = { selector = "20261026120000pm", value = "k=rsa;p=MIGf..." }
+  # The DKIM record Postmark shows for zetatwo.dev; the selector is the part
+  # before ._domainkey.
+  postmark_dkim = {
+    selector = "20261026194324pm"
+    value    = "k=rsa;p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCLZ3gqkN5nthU1izVohQ2tflkqs1scr2tSV67KOd9MVLukjzLc9O01zEfyySHMfIvyIYUR0TPOuGsZsXNfIxTFurJ0FzCzUlP6uOaVjjJkJXd9WhIw5ugCg5h11EgLulNxEKaOMVskquuD4YBqmwr+ZzpbUMuER783Qfz9oANHCwIDAQAB"
   }
 }
 
-# Postmark sends on its own IPs, so there's no MX or SPF record of our own:
-# SPF alignment comes from this Return-Path, which sends bounces to Postmark.
+# Bounces go to Postmark through our own domain.
 resource "cloudflare_dns_record" "mail_return_path" {
-  for_each = local.mail_senders
-  zone_id  = var.cloudflare_zones["zetatwo_dev"]
-  name     = "pm-bounces.${each.key}"
-  type     = "CNAME"
-  content  = "pm.mtasv.net"
-  ttl      = 1
-  proxied  = false
-}
-
-# Monitor only (p=none), no aggregate reports for now; tighten to quarantine
-# once Postmark shows DKIM and Return-Path passing.
-resource "cloudflare_dns_record" "mail_dmarc" {
-  for_each = local.mail_senders
-  zone_id  = var.cloudflare_zones["zetatwo_dev"]
-  name     = "_dmarc.${each.key}"
-  type     = "TXT"
-  content  = "\"v=DMARC1; p=none\""
-  ttl      = 1
+  zone_id = var.cloudflare_zones["zetatwo_dev"]
+  name    = "pm-bounces"
+  type    = "CNAME"
+  content = "pm.mtasv.net"
+  ttl     = 1
+  proxied = false
 }
 
 resource "cloudflare_dns_record" "mail_dkim" {
-  for_each = { for label, dkim in local.mail_senders : label => dkim if dkim != null }
+  for_each = local.postmark_dkim == null ? {} : { postmark = local.postmark_dkim }
   zone_id  = var.cloudflare_zones["zetatwo_dev"]
-  name     = "${each.value.selector}._domainkey.${each.key}"
+  name     = "${each.value.selector}._domainkey"
   type     = "TXT"
   content  = "\"${each.value.value}\""
   ttl      = 1

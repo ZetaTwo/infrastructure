@@ -73,18 +73,21 @@ Postmark `internal` server's SMTP credential.
   Each has its own token, activity log and stats. Staging servers can
   run in **sandbox mode**: they accept and log mail but never deliver
   it.
-- **Sending domains:** each app environment sends from its own domain,
-  `noreply@<app domain>` (`noreply@canst.zetatwo.dev` for canst
-  staging). Apprise's operator emails come from `notify.zetatwo.dev`.
-  Nothing sends from `zeta-two.com` for now, so app mail can't hurt the
-  personal mail domain's reputation. Every sending domain is a key in
-  `local.mail_senders` in `terraform/dns.tf`, which gives it:
-  - **Return-Path:** `pm-bounces.<app>` CNAME `pm.mtasv.net`. This
-    gives SPF alignment, so no SPF record of our own is needed.
-  - **DMARC:** `_dmarc.<app>`, `p=none` with no aggregate reports, until
-    Postmark shows everything passing. Then tighten it to `quarantine`.
-  - **DKIM:** once the entry's value is set to the selector and key
-    Postmark generates.
+- **Sending domain:** every app sends from the `zetatwo.dev` apex, with
+  its name as the local part: `canst@zetatwo.dev`, and
+  `notify@zetatwo.dev` for Apprise. Nothing sends from `zeta-two.com` for
+  now, so app mail can't hurt the personal mail domain's reputation.
+  Replies go nowhere, since there's no MX. The DNS is in
+  `terraform/dns.tf`:
+  - **Already there, outside Terraform, left as is:** SPF
+    `v=spf1 -all`, DMARC `p=reject; sp=reject; adkim=s; aspf=s`, and a
+    null DKIM wildcard, all from when the domain sent no mail.
+  - **Return-Path:** `pm-bounces` CNAME `pm.mtasv.net`. SPF is checked on
+    this domain, not the apex, so `-all` doesn't block Postmark.
+  - **DKIM:** set `local.postmark_dkim` to the selector and key Postmark
+    generates. Its signature (`d=zetatwo.dev`) aligns even under strict
+    DMARC, and that alone passes DMARC. Mail that fails DKIM is
+    rejected, not sent to spam, so a broken setup fails loudly.
 - **App config:** an optional `[smtp]` section, rendered by the app's
   role when the environment has a `postmark_token`. The server token is
   both username and password:
@@ -95,7 +98,7 @@ Postmark `internal` server's SMTP credential.
   port = 587
   username = "<server token>"
   password = "<server token>"
-  from = "Canst <noreply@canst.zetatwo.dev>"
+  from = "Canst <canst@zetatwo.dev>"
   ```
 
   Without it, the app logs each email instead. Locally, that's how to
@@ -146,12 +149,12 @@ Postmark `internal` server's SMTP credential.
 
 One-time steps that need accounts and secrets.
 
-1. **Account and domains.** Run `make tf-plan`, then `make tf-apply`, to
-   create the Return-Path and DMARC records. Create a Postmark account
-   and add the sender domains `canst.zetatwo.dev` and
-   `notify.zetatwo.dev`, with Return-Path `pm-bounces.<domain>`. Set each
-   domain's DKIM selector and value in `local.mail_senders`, and apply
-   again. Wait for Postmark to show DKIM and Return-Path as verified.
+1. **Account and domain.** Run `make tf-plan`, then `make tf-apply`, to
+   create the Return-Path record. Create a Postmark account and add the
+   sender domain `zetatwo.dev`, with Return-Path
+   `pm-bounces.zetatwo.dev`. Set `local.postmark_dkim` to the selector
+   and value Postmark shows, and apply again. Wait for Postmark to show
+   DKIM and Return-Path as verified.
 2. **Servers.** Create one server per app × environment
    (`canst-staging`, sandbox mode if you don't want real delivery from
    staging) plus one `internal` server for Apprise. Postmark holds new
