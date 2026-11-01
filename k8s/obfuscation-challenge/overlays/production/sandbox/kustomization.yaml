@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: obfuscation-challenge-sandbox
+resources:
+  - ../../../runner
+  - namespace.yaml
+patches:
+  - target:
+      kind: NetworkPolicy
+      name: runner-isolation
+    patch: |-
+      - op: replace
+        path: /spec/ingress/0/from/0/namespaceSelector/matchLabels/kubernetes.io~1metadata.name
+        value: obfuscation-challenge
+images:
+  # Set by the deploy workflow to the newest vX.Y.Z tags (deploy-targets.toml).
+  - name: ghcr.io/zetatwo/obfuscation-challenge-runner
+    newTag: placeholder-overridden-by-deploy

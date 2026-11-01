@@ -1,0 +1,4 @@
+# Rendered by ansible/roles/obfuscation_challenge for the {{ item.name }} environment.
+# Mounted into the migrate initContainer only, with the <db_name>_migrate role.
+[database]
+url = "postgres://{{ item.db_name }}_migrate:{{ item.migrate_db_password | urlencode }}@postgres.postgres.svc.cluster.local/{{ item.db_name }}"

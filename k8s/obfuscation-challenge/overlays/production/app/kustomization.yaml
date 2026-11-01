@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: obfuscation-challenge
+resources:
+  - ../../../base
+  - namespace.yaml
+  - ingress.yaml
+  - backup-cronjob.yaml
+images:
+  # Set by the deploy workflow to the newest vX.Y.Z tags (deploy-targets.toml).
+  # Each newTag must stay directly under its own `- name:` line.
+  - name: ghcr.io/zetatwo/obfuscation-challenge-backend
+    newTag: placeholder-overridden-by-deploy
+  - name: ghcr.io/zetatwo/obfuscation-challenge-frontend
+    newTag: placeholder-overridden-by-deploy

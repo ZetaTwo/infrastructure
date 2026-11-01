@@ -16,6 +16,10 @@ postgres_databases:
     migrate_password: "{{ aoe2tm_staging_migrate_db_password }}"
     app_password: "{{ aoe2tm_staging_app_db_password }}"
     backup_password: "{{ aoe2tm_staging_backup_db_password }}"
+  - name: obfuscation_challenge_staging
+    migrate_password: "{{ obfuscation_challenge_staging_migrate_db_password }}"
+    app_password: "{{ obfuscation_challenge_staging_app_db_password }}"
+    backup_password: "{{ obfuscation_challenge_staging_backup_db_password }}"
 
 postgres_superuser_password: !vault |
           $ANSIBLE_VAULT;1.1;AES256

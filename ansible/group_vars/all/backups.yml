@@ -46,3 +46,10 @@ backup_targets:
       database: aoe2tm_staging
       user: aoe2tm_staging_backup
       password: "{{ aoe2tm_staging_backup_db_password }}"
+  - name: obfuscation-challenge-staging
+    namespace: obfuscation-challenge-staging
+    restic_password: "{{ obfuscation_challenge_staging_restic_password }}"
+    postgres:
+      database: obfuscation_challenge_staging
+      user: obfuscation_challenge_staging_backup
+      password: "{{ obfuscation_challenge_staging_backup_db_password }}"

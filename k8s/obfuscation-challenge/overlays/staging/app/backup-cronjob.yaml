@@ -1,0 +1,50 @@
+# docs/backups.md's template, for a database on the shared Postgres. Holds the
+# solvers' answers, so it matters. PGHOST/PGUSER/PGDATABASE/PGPASSWORD come from
+# obfuscation-challenge-staging-backup-secrets (ansible/roles/backups), so pg_dump
+# runs as the app's own role.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: obfuscation-challenge-backup
+spec:
+  schedule: "0 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            # Names the app in Vector's Discord error alerts.
+            app: obfuscation-challenge-backup
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: backup
+              image: alpine:3.22
+              envFrom:
+                - secretRef:
+                    name: obfuscation-challenge-staging-backup-secrets
+              env:
+                - name: RESTIC_REPOSITORY
+                  value: s3:https://fsn1.your-objectstorage.com/zetatwo-infra-backups/obfuscation-challenge-staging
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  trap 'echo "{\"level\":\"ERROR\",\"message\":\"obfuscation-challenge-staging backup failed\"}"' ERR
+
+                  apk add --no-cache postgresql16-client restic >/dev/null
+
+                  # Initializes the restic repository on the very first run.
+                  restic cat config >/dev/null 2>&1 || restic init
+
+                  pg_dump -Fc \
+                    | restic backup --stdin --stdin-filename dump.dump --host obfuscation-challenge-staging
+
+                  restic forget --prune \
+                    --keep-daily 14 --keep-weekly 8 --keep-monthly 6
+                  restic check

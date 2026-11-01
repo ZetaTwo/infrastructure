@@ -1,0 +1,15 @@
+---
+# ansible/roles/obfuscation_challenge: per environment, the app's two Secrets, as
+# for canst. The runner's sandbox namespace gets none on purpose. The values
+# below are vaulted in ansible/group_vars/all/obfuscation_challenge_secrets.yml
+# (see the bootstrap in docs/app-setup.md). Production is added here at go-live.
+obfuscation_challenge_environments:
+  - name: staging
+    namespace: obfuscation-challenge-staging
+    sandbox_namespace: obfuscation-challenge-sandbox-staging
+    db_name: obfuscation_challenge_staging
+    app_db_password: "{{ obfuscation_challenge_staging_app_db_password }}"
+    migrate_db_password: "{{ obfuscation_challenge_staging_migrate_db_password }}"
+    s3_bucket: zetatwo-obfuscation-challenge-staging
+    s3_access_key: "{{ obfuscation_challenge_staging_s3_access_key }}"
+    s3_secret_key: "{{ obfuscation_challenge_staging_s3_secret_key }}"

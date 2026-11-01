@@ -51,3 +51,21 @@ name = "canst-frontend/staging"
 file = "k8s/canst/overlays/staging/kustomization.yaml"
 image = "ghcr.io/zetatwo/canst-frontend"
 policy = "main"
+
+[[target]]
+name = "obfuscation-challenge-backend/staging"
+file = "k8s/obfuscation-challenge/overlays/staging/app/kustomization.yaml"
+image = "ghcr.io/zetatwo/obfuscation-challenge-backend"
+policy = "main"
+
+[[target]]
+name = "obfuscation-challenge-frontend/staging"
+file = "k8s/obfuscation-challenge/overlays/staging/app/kustomization.yaml"
+image = "ghcr.io/zetatwo/obfuscation-challenge-frontend"
+policy = "main"
+
+[[target]]
+name = "obfuscation-challenge-runner/staging"
+file = "k8s/obfuscation-challenge/overlays/staging/sandbox/kustomization.yaml"
+image = "ghcr.io/zetatwo/obfuscation-challenge-runner"
+policy = "main"

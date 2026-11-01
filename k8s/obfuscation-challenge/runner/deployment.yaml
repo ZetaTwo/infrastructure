@@ -1,0 +1,84 @@
+# Runs the challenge binaries, which nobody has audited and whose stdin the
+# public controls. So: its own namespace, no secrets, no service account token,
+# no network but the backend's requests, and `hostUsers: false`, which makes
+# root and CAP_SYS_ADMIN here mean nothing outside this pod's user namespace.
+# nsjail needs them to build its jail, then drops to an unprivileged user.
+# The settings come from scripts/spikes/s6_sandbox in the ai-research repo;
+# check any change to them there first.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: obfuscation-challenge-runner
+  labels:
+    app: obfuscation-challenge-runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: obfuscation-challenge-runner
+  template:
+    metadata:
+      labels:
+        app: obfuscation-challenge-runner
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      hostUsers: false
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      containers:
+        - name: obfuscation-challenge-runner
+          # Always overridden by each overlay's images: newTag:.
+          image: ghcr.io/zetatwo/obfuscation-challenge-runner:placeholder-overridden-by-overlay
+          ports:
+            - containerPort: 8080
+          env:
+            - name: RUST_LOG
+              value: info
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 30
+          # A misbehaving binary can reach the memory limit (a fork bomb's churn
+          # does), which kills this container and nothing else; the backend
+          # answers 503 until it restarts. The CPU limit is what keeps it from
+          # starving the node, so unlike other apps this has one.
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+              ephemeral-storage: 64Mi
+          securityContext:
+            procMount: Unmasked
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            # The default profile refuses the jail's mounts.
+            appArmorProfile:
+              type: Unconfined
+            capabilities:
+              drop: [ALL]
+              add: [SYS_ADMIN, SETUID, SETGID, SETPCAP]
+          volumeMounts:
+            - name: work
+              mountPath: /work
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: work
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Mi
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Mi

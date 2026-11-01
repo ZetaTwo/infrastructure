@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: obfuscation-challenge-backend
+  labels:
+    app: obfuscation-challenge-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: obfuscation-challenge-backend
+  template:
+    metadata:
+      labels:
+        app: obfuscation-challenge-backend
+      # Scraped by vmsingle (k8s/monitoring/victoria-metrics.yaml).
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9000"
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      automountServiceAccountToken: false
+      # Applies pending migrations before the server starts, on every rollout.
+      initContainers:
+        - name: migrate
+          # Always overridden by each overlay's images: newTag:.
+          image: ghcr.io/zetatwo/obfuscation-challenge-backend:placeholder-overridden-by-overlay
+          args: ["--config", "/etc/challenge/migrate.toml", "migrate"]
+          env:
+            - name: RUST_LOG
+              value: info
+          volumeMounts:
+            - name: migrate-config
+              mountPath: /etc/challenge
+              readOnly: true
+      containers:
+        - name: obfuscation-challenge-backend
+          image: ghcr.io/zetatwo/obfuscation-challenge-backend:placeholder-overridden-by-overlay
+          args: ["--config", "/etc/challenge/config.toml"]
+          ports:
+            - containerPort: 3000
+            # [metrics] listen_addr. Deliberately not in the Service, so no
+            # Ingress can route to it.
+            - name: metrics
+              containerPort: 9000
+          env:
+            - name: RUST_LOG
+              value: info
+          volumeMounts:
+            - name: config
+              mountPath: /etc/challenge
+              readOnly: true
+            # For bundles copied in for `import`, which hold solutions: in
+            # memory, so they are gone with the pod.
+            - name: bundles
+              mountPath: /tmp
+          livenessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 3000
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 3000
+          # Holds at most a 10 MiB upload or a 1 MiB binary per request; the
+          # rest of the app is a few tens of Mi.
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+      volumes:
+        # config.toml, rendered by ansible/roles/obfuscation_challenge. Uses a
+        # DML-only Postgres role.
+        - name: config
+          secret:
+            secretName: obfuscation-challenge-config
+        # A separate Secret, so the DDL-owner credential never lands on the
+        # main container's filesystem.
+        - name: migrate-config
+          secret:
+            secretName: obfuscation-challenge-config-migrate
+        - name: bundles
+          emptyDir:
+            medium: Memory
+            sizeLimit: 32Mi

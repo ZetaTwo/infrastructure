@@ -22,4 +22,5 @@
     - postgres
     - canst
     - aoe2tm
+    - obfuscation_challenge
     - backups

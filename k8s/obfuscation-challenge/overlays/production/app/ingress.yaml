@@ -1,0 +1,32 @@
+# Public, no auth middleware. One Ingress: /api goes to the backend by Traefik's
+# longer-rule-wins priority.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: obfuscation-challenge
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - obfuscation.zeta-two.com
+      secretName: obfuscation-challenge-tls
+  rules:
+    - host: obfuscation.zeta-two.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: obfuscation-challenge-backend
+                port:
+                  number: 3000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: obfuscation-challenge-frontend
+                port:
+                  number: 80

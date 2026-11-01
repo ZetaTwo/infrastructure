@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: obfuscation-challenge
+  labels:
+    # Admitted by k8s/postgres/networkpolicy.yaml.
+    zetatwo.dev/postgres-client: "true"

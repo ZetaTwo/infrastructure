@@ -1,0 +1,24 @@
+# Rendered by ansible/roles/obfuscation_challenge for the {{ item.name }} environment.
+# Uses the DML-only <db_name>_app role; see migrate.toml.j2 for the migrate step's.
+[app]
+listen_addr = "0.0.0.0:3000"
+log_format = "json"
+
+[metrics]
+# Prometheus metrics, scraped by vmsingle; the Deployment declares this port.
+listen_addr = "0.0.0.0:9000"
+
+[database]
+url = "postgres://{{ item.db_name }}_app:{{ item.app_db_password | urlencode }}@postgres.postgres.svc.cluster.local/{{ item.db_name }}"
+
+# Binaries and solvers' uploads.
+[store]
+backend = "s3"
+bucket = "{{ item.s3_bucket }}"
+region = "fsn1"
+endpoint = "https://fsn1.your-objectstorage.com"
+access_key_id = {{ item.s3_access_key | to_json }}
+secret_access_key = {{ item.s3_secret_key | to_json }}
+
+[runner]
+url = "http://obfuscation-challenge-runner.{{ item.sandbox_namespace }}.svc.cluster.local:8080"

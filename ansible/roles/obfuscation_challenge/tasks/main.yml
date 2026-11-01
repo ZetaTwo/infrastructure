@@ -1,0 +1,44 @@
+# Per-environment loop: both namespaces, and the app's two Secrets, kept separate
+# so the running backend never has the migrate role's credential on its
+# filesystem. The database comes from ansible/roles/postgres (postgres_databases).
+- name: Ensure obfuscation-challenge namespaces exist
+  kubernetes.core.k8s:
+    name: "{{ item }}"
+    api_version: v1
+    kind: Namespace
+    state: present
+  loop: "{{ obfuscation_challenge_environments | map(attribute='namespace') + obfuscation_challenge_environments | map(attribute='sandbox_namespace') }}"
+
+- name: Apply obfuscation-challenge config secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: obfuscation-challenge-config
+        namespace: "{{ item.namespace }}"
+      type: Opaque
+      stringData:
+        config.toml: "{{ lookup('template', 'config.toml.j2') }}"
+  loop: "{{ obfuscation_challenge_environments }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+
+- name: Apply obfuscation-challenge migrate config secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: obfuscation-challenge-config-migrate
+        namespace: "{{ item.namespace }}"
+      type: Opaque
+      stringData:
+        migrate.toml: "{{ lookup('template', 'migrate.toml.j2') }}"
+  loop: "{{ obfuscation_challenge_environments }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true

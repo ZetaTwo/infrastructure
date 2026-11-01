@@ -1,0 +1,50 @@
+# Two Ingresses on one host, as in k8s/canst/overlays/staging/ingress.yaml:
+# only page paths get the errors middleware (docs/app-setup.md#gated-apps-with-an-api).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: obfuscation-challenge
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-errors@kubernetescrd,auth-oauth2-proxy-auth-collaborators@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - obfuscation.zetatwo.dev
+      secretName: obfuscation-challenge-staging-tls
+  rules:
+    - host: obfuscation.zetatwo.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: obfuscation-challenge-frontend
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: obfuscation-challenge-api
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-auth-collaborators@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - obfuscation.zetatwo.dev
+      secretName: obfuscation-challenge-staging-tls
+  rules:
+    - host: obfuscation.zetatwo.dev
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: obfuscation-challenge-backend
+                port:
+                  number: 3000

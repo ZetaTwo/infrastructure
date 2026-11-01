@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: obfuscation-challenge-runner
+spec:
+  selector:
+    app: obfuscation-challenge-runner
+  ports:
+    - port: 8080
+      targetPort: 8080

@@ -38,6 +38,8 @@ ghcr_pull_secret_namespaces:
   - aoe2-tournament-bot
   - aoe2tm-staging
   - canst-staging
+  - obfuscation-challenge-staging
+  - obfuscation-challenge-sandbox-staging
 
 # GitHub PAT, read:packages scope (classic — GHCR doesn't support
 # fine-grained tokens for pulls).

@@ -1,0 +1,19 @@
+# Nothing out, including DNS and the Hetzner metadata address, and in only from
+# the backend. Each overlay names its app namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: runner-isolation
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: placeholder-overridden-by-overlay
+          podSelector:
+            matchLabels:
+              app: obfuscation-challenge-backend
+      ports:
+        - port: 8080

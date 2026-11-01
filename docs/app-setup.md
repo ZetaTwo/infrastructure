@@ -679,3 +679,10 @@ A signed-in user who isn't on an app's policy gets a plain 403. The errors
 middleware deliberately only redirects 401s to sign-in, otherwise that 403
 would loop. A Workspace account can also be refused by Google itself if its
 organization's admin restricts third-party app access.
+
+## One-time obfuscation-challenge staging bootstrap
+
+The human challenge site (`ZetaTwo/ai-research`) is laid out like canst, plus a
+binary runner in its own namespace (`k8s/obfuscation-challenge/runner`). The runner
+has no app secrets, no outbound network and `hostUsers: false`. Its bootstrap, including
+the sandbox test to run first, is in that repo's `docs/challenge-site.md`.

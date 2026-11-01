@@ -9,4 +9,6 @@ resources:
   - canst/overlays/staging
   - monitoring
   - notify
+  - obfuscation-challenge/overlays/staging/app
+  - obfuscation-challenge/overlays/staging/sandbox
   - postgres

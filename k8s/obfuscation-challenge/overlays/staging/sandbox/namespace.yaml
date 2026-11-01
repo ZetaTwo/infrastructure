@@ -1,0 +1,5 @@
+# No postgres-client label: the runner has no business with the database.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: obfuscation-challenge-sandbox-staging
