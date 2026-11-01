@@ -3,8 +3,9 @@
 # no network but the backend's requests, and `hostUsers: false`, which makes
 # root and CAP_SYS_ADMIN here mean nothing outside this pod's user namespace.
 # nsjail needs them to build its jail, then drops to an unprivileged user.
-# The settings come from scripts/spikes/s6_sandbox in the ai-research repo;
-# check any change to them there first.
+# The settings were tested on this cluster's node by scripts/spikes/s6_sandbox
+# in the ai-research repo, which says why each is what it is. Check any change
+# to them there first.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -35,19 +36,23 @@ spec:
           env:
             - name: RUST_LOG
               value: info
+          # No traffic at first: the NetworkPolicy took some seconds to reach a new
+          # pod in testing (under 45), and a binary must not run before it has.
           readinessProbe:
             httpGet:
               path: /healthz
               port: 8080
+            initialDelaySeconds: 60
           livenessProbe:
             httpGet:
               path: /healthz
               port: 8080
             periodSeconds: 30
-          # A misbehaving binary can reach the memory limit (a fork bomb's churn
-          # does), which kills this container and nothing else; the backend
-          # answers 503 until it restarts. The CPU limit is what keeps it from
-          # starving the node, so unlike other apps this has one.
+            initialDelaySeconds: 60
+          # A misbehaving binary can reach the memory limit, which kills this
+          # container and nothing else; the backend answers 503 until it restarts.
+          # The CPU limit is what keeps it from starving the node, so unlike other
+          # apps this has one.
           resources:
             requests:
               cpu: 10m
@@ -62,12 +67,12 @@ spec:
             allowPrivilegeEscalation: false
             seccompProfile:
               type: RuntimeDefault
-            # The default profile refuses the jail's mounts.
+            # The default profile refuses the jail's mounts (tested).
             appArmorProfile:
               type: Unconfined
             capabilities:
               drop: [ALL]
-              add: [SYS_ADMIN, SETUID, SETGID, SETPCAP]
+              add: [SYS_ADMIN, SETUID, SETGID, SETPCAP, SYS_CHROOT]
           volumeMounts:
             - name: work
               mountPath: /work
