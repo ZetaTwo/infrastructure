@@ -12,4 +12,4 @@ images:
   - name: ghcr.io/zetatwo/obfuscation-challenge-backend
     newTag: placeholder-overridden-by-deploy
   - name: ghcr.io/zetatwo/obfuscation-challenge-frontend
-    newTag: placeholder-overridden-by-deploy
+    newTag: main-1793565572-86572de7756b203426d6db4a56b6d11419a20271
