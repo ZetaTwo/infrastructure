@@ -88,7 +88,7 @@ upgrade needs a reboot, a systemd timer from
 `ansible/roles/reboot_required_metric` writes `node_reboot_required` as a
 node-exporter textfile metric. vmalert's `RebootRequired` rule then alerts
 to Discord, repeating every 3 hours until you reboot
-(`ssh root@node1.zetatwo.dev reboot`).
+(`just reboot`).
 
 Flux's release bundles 7 controllers; only 4 are installed
 (`source-controller`, `kustomize-controller`, `helm-controller`,
