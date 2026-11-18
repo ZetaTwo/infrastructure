@@ -90,6 +90,14 @@ node-exporter textfile metric. vmalert's `RebootRequired` rule then alerts
 to Discord, repeating every 3 hours until you reboot
 (`just reboot`).
 
+Nothing bumps the other pinned versions automatically. `just outdated`
+(`scripts/outdated.py`) lists what has a newer upstream release: the
+versions in `cluster.yml`, Helm chart versions, third-party image tags
+under `k8s/`, and Terraform providers. App images aren't included; the
+deploy workflow keeps those current. `just node-updates` shows pending apt
+upgrades, the running versus newest installed kernel, and whether a reboot
+is pending.
+
 Flux's release bundles 7 controllers; only 4 are installed
 (`source-controller`, `kustomize-controller`, `helm-controller`,
 `notification-controller`) — the other 3 (`image-reflector-controller`,
