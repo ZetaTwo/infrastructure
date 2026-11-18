@@ -9,8 +9,8 @@ Covers the k3s/cert-manager/Flux pins in ansible/group_vars/all/cluster.yml,
 the collections in ansible/requirements.yml, Flux HelmRelease chart versions,
 third-party image tags under k8s/ (our own ghcr.io/zetatwo images are kept
 current by the deploy workflow), GitHub Actions used under .github/, and the
-Terraform provider versions in terraform/.terraform.lock.hcl. It also lists
-the locally installed `ansible` package, which nothing in the repo pins.
+Terraform provider versions in terraform/.terraform.lock.hcl. Locally
+installed tools (ansible, terraform, ...) are out of scope.
 
 An image tag is compared only against tags of the same shape: `18.7-trixie`
 against other `<n>.<n>-trixie` tags, `v7.15.6` against `v<n>.<n>.<n>`. A
@@ -19,7 +19,6 @@ doesn't count as newer. Run with --all to also list what is already current.
 """
 import json
 import re
-import subprocess
 import sys
 import urllib.parse
 import urllib.request
@@ -83,10 +82,6 @@ def galaxy_latest(collection):
     data = get_json("https://galaxy.ansible.com/api/v3/plugin/ansible/content/published/"
                     f"collections/index/{namespace}/{name}/")
     return data["highest_version"]["version"]
-
-
-def pypi_latest(package):
-    return get_json(f"https://pypi.org/pypi/{package}/json")["info"]["version"]
 
 
 def helm_latest(repo_url, chart):
@@ -159,13 +154,6 @@ def pins():
     for c in requirements["collections"]:
         yield ("ansible", c["name"], str(c["version"]), "ansible/requirements.yml",
                lambda name=c["name"]: galaxy_latest(name))
-    try:
-        out = subprocess.run(["ansible-community", "--version"], capture_output=True,
-                             text=True, check=True).stdout
-        yield ("ansible", "ansible (package)", out.split()[-1], "installed locally, not pinned",
-               lambda: pypi_latest("ansible"))
-    except (OSError, subprocess.CalledProcessError):
-        pass
 
     actions = {}
     for path in sorted((ROOT / ".github").rglob("*.yml")):

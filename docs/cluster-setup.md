@@ -94,9 +94,8 @@ Nothing bumps the other pinned versions automatically. `just outdated`
 (`scripts/outdated.py`) lists what has a newer upstream release: the
 versions in `cluster.yml`, the Ansible collections in
 `ansible/requirements.yml`, Helm chart versions, third-party image tags
-under `k8s/`, GitHub Actions under `.github/`, and Terraform providers. It
-also shows the locally installed `ansible` package, which the repo doesn't
-pin. App images aren't included; the deploy workflow keeps those current. `just node-updates` shows pending apt
+under `k8s/`, GitHub Actions under `.github/`, and Terraform providers. App
+images aren't included; the deploy workflow keeps those current. `just node-updates` shows pending apt
 upgrades, the running versus newest installed kernel, and whether a reboot
 is pending.
 
