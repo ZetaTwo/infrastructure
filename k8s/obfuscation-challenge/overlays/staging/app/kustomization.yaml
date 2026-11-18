@@ -10,6 +10,6 @@ images:
   # Set by the deploy workflow to the newest main-* tags (deploy-targets.toml).
   # Each newTag must stay directly under its own `- name:` line.
   - name: ghcr.io/zetatwo/obfuscation-challenge-backend
-    newTag: main-1795026711-ca7c39aaa52e52532fc2134a10976f7b6b44d1f9
+    newTag: main-1795028284-4d289e8ebd789155a3e0ea7d69a37f976a9c330d
   - name: ghcr.io/zetatwo/obfuscation-challenge-frontend
-    newTag: main-1795026711-ca7c39aaa52e52532fc2134a10976f7b6b44d1f9
+    newTag: main-1795028284-4d289e8ebd789155a3e0ea7d69a37f976a9c330d

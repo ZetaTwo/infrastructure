@@ -17,4 +17,4 @@ images:
   - name: ghcr.io/zetatwo/canst-backend
     newTag: main-1795024460-b8d5bebe753f84564dea95cba0b399f2ab242392
   - name: ghcr.io/zetatwo/canst-frontend
-    newTag: main-1795024460-b8d5bebe753f84564dea95cba0b399f2ab242392
+    newTag: main-1795028281-4204827f9807cdc2fc1cd8924aef6312587f5426

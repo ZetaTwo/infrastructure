@@ -17,4 +17,4 @@ images:
   - name: ghcr.io/zetatwo/aoe2tm-backend
     newTag: main-1795024461-11cdac7b119ea9a9044ce4d63e1e199af094c1a3
   - name: ghcr.io/zetatwo/aoe2tm-frontend
-    newTag: main-1795024461-11cdac7b119ea9a9044ce4d63e1e199af094c1a3
+    newTag: main-1795028283-2c77db299cfa693b075ce089e7151846cc9586cc
