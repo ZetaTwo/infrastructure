@@ -90,6 +90,10 @@ node-exporter textfile metric. vmalert's `RebootRequired` rule then alerts
 to Discord, repeating every 3 hours until you reboot
 (`just reboot`).
 
+unattended-upgrades only installs security updates. `just upgrade`
+(`ansible/upgrade.yaml`) installs everything else that's pending, the
+equivalent of `apt full-upgrade`, one node at a time and without rebooting.
+
 Nothing bumps the other pinned versions automatically. `just outdated`
 (`scripts/outdated.py`) lists what has a newer upstream release: the
 versions in `cluster.yml`, the Ansible collections in

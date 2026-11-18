@@ -15,6 +15,11 @@ reboot hosts='all':
 outdated *args:
     @uv run --quiet --script ../scripts/outdated.py {{ args }}
 
+# Install all pending package updates (apt full-upgrade), one node at a time; doesn't reboot (default: all)
+[confirm('Upgrade all packages on the node(s)? [y/N]')]
+upgrade hosts='all':
+    ansible-playbook upgrade.yaml --limit '{{ hosts }}'
+
 # Show pending apt upgrades, kernel and reboot state on the nodes (default: all)
 node-updates hosts='all':
     @ansible '{{ hosts }}' -m ansible.builtin.shell -a 'echo "kernel: running $(uname -r), newest installed $(ls /boot/vmlinuz-* | sed "s#/boot/vmlinuz-##" | sort -V | tail -1)"; test -f /var/run/reboot-required && echo "reboot required: $(sort -u /var/run/reboot-required.pkgs 2>/dev/null | tr "\n" " ")"; echo "upgradable packages:"; apt list --upgradable 2>/dev/null | tail -n +2' | sed 's/ | CHANGED | rc=0 >>//'

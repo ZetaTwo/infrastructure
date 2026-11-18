@@ -1,0 +1,34 @@
+---
+# Installs every pending package update (`apt full-upgrade`), one node at a
+# time. unattended-upgrades (roles/unattended_upgrades) only takes security
+# updates; this takes the rest. Reboots stay separate (`just reboot`), and
+# node1's kernel pin (CLAUDE.md) still decides which kernel boots.
+# Run with `just upgrade [hosts]`.
+- name: Upgrade OS packages
+  hosts: all
+  serial: 1
+  become: false
+
+  tasks:
+    # `dist` is apt-get dist-upgrade, the same as `apt full-upgrade`. The
+    # module's `full` would use aptitude, which the nodes don't have. Local
+    # config file changes are kept (the module's default dpkg options).
+    - name: Upgrade all packages
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+      register: upgrade
+
+    - name: Show what the upgrade did
+      ansible.builtin.debug:
+        msg: "{{ upgrade.stdout | regex_search('\\d+ upgraded, .*') | default('nothing to upgrade', true) }}"
+
+    - name: Check whether a reboot is needed
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: Report a pending reboot
+      ansible.builtin.debug:
+        msg: "Reboot required; run `just reboot {{ inventory_hostname }}`"
+      when: reboot_required.stat.exists
