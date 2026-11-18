@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: apprise
-          image: docker.io/caronc/apprise:2.2.0
+          image: docker.io/caronc/apprise:2.1.0
           env:
             # Reads /config/<key>.yml, here the key `apps`.
             - name: APPRISE_STATEFUL_MODE
