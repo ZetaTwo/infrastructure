@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["pyyaml"]
+# dependencies = ["ansible-core", "pyyaml"]
 # ///
 """List versions pinned in this repo next to the newest upstream release.
 
@@ -27,6 +27,9 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import yaml
+from ansible.inventory.manager import InventoryManager
+from ansible.parsing.dataloader import DataLoader
+from ansible.vars.manager import VariableManager
 
 ROOT = Path(__file__).resolve().parent.parent
 OWN_IMAGES = "ghcr.io/zetatwo/"
@@ -133,25 +136,21 @@ def terraform_latest(source):
 
 # --- pins in this repo -----------------------------------------------------
 
-def ansible_vars(names):
-    """Values of Ansible vars as the first inventory host sees them.
+def ansible_vars():
+    """Ansible vars as the first inventory host sees them, untemplated.
 
-    debug runs on the controller, so nothing connects to the node, and vaulted
-    values elsewhere in group_vars are never decrypted.
+    Uses Ansible's internal Python API, which can change between releases.
+    Vaulted values elsewhere in group_vars are never decrypted.
     """
-    msg = "{{ {" + ", ".join(f'"{n}": {n}' for n in names) + "} | to_json }}"
-    out = subprocess.run(
-        ["ansible", "all", "--limit", "all[0]", "--one-line",
-         "-m", "ansible.builtin.debug", "-a", f"msg={msg}"],
-        cwd=ROOT / "ansible", capture_output=True, text=True, check=True,
-    ).stdout
-    result = next(line for line in out.splitlines() if " => {" in line)
-    return json.loads(json.loads(result.split(" => ", 1)[1])["msg"])
+    loader = DataLoader()
+    inventory = InventoryManager(loader=loader, sources=[str(ROOT / "ansible/inventory/hosts.yaml")])
+    variables = VariableManager(loader=loader, inventory=inventory)
+    return variables.get_vars(host=inventory.get_hosts()[0])
 
 
 def pins():
     """Yield (group, name, current, where, lookup) for everything pinned."""
-    cluster = ansible_vars(CLUSTER_PINS)
+    cluster = ansible_vars()
     for var, repo in CLUSTER_PINS.items():
         yield ("cluster", repo.split("/")[1], cluster[var], f"cluster.yml {var}",
                lambda repo=repo: github_latest(repo))
