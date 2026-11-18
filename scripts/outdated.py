@@ -6,13 +6,16 @@
 """List versions pinned in this repo next to the newest upstream release.
 
 Covers the k3s/cert-manager/Flux pins in ansible/group_vars/all/cluster.yml,
-Flux HelmRelease chart versions, third-party image tags under k8s/ (our own
-ghcr.io/zetatwo images are kept current by the deploy workflow), and the
-Terraform provider versions in terraform/.terraform.lock.hcl.
+the collections in ansible/requirements.yml, Flux HelmRelease chart versions,
+third-party image tags under k8s/ (our own ghcr.io/zetatwo images are kept
+current by the deploy workflow), GitHub Actions used under .github/, and the
+Terraform provider versions in terraform/.terraform.lock.hcl. It also lists
+the locally installed `ansible` package, which nothing in the repo pins.
 
 An image tag is compared only against tags of the same shape: `18.7-trixie`
-against other `<n>.<n>-trixie` tags, `v7.15.6` against `v<n>.<n>.<n>`.
-Run with --all to also list what is already current.
+against other `<n>.<n>-trixie` tags, `v7.15.6` against `v<n>.<n>.<n>`. A
+short pin like an action's `v3` is compared at its own precision, so v3.4.0
+doesn't count as newer. Run with --all to also list what is already current.
 """
 import json
 import re
@@ -54,10 +57,12 @@ def is_stable(version):
 
 
 def change(current, latest):
-    a, b = numbers(current), numbers(latest)
+    """'major'/'minor'/'patch' if latest is newer, compared at current's precision."""
+    a = numbers(current)
+    b = numbers(latest)[: len(a)]
     if b <= a:
         return None
-    level = next((i for i, (x, y) in enumerate(zip(a, b)) if x != y), len(a))
+    level = next(i for i, (x, y) in enumerate(zip(a, b)) if x != y)
     return ["major", "minor", "patch"][min(level, 2)]
 
 
@@ -68,6 +73,17 @@ def github_latest(repo):
     tags = [r["tag_name"] for r in releases
             if not r["draft"] and not r["prerelease"] and is_stable(r["tag_name"])]
     return max(tags, key=numbers)
+
+
+def galaxy_latest(collection):
+    namespace, name = collection.split(".")
+    data = get_json("https://galaxy.ansible.com/api/v3/plugin/ansible/content/published/"
+                    f"collections/index/{namespace}/{name}/")
+    return data["highest_version"]["version"]
+
+
+def pypi_latest(package):
+    return get_json(f"https://pypi.org/pypi/{package}/json")["info"]["version"]
 
 
 def helm_latest(repo_url, chart):
@@ -139,6 +155,27 @@ def pins():
     for var, repo in CLUSTER_PINS.items():
         yield ("cluster", repo.split("/")[1], cluster[var], f"cluster.yml {var}",
                lambda repo=repo: github_latest(repo))
+
+    requirements = yaml.safe_load((ROOT / "ansible/requirements.yml").read_text())
+    for c in requirements["collections"]:
+        yield ("ansible", c["name"], str(c["version"]), "ansible/requirements.yml",
+               lambda name=c["name"]: galaxy_latest(name))
+    try:
+        out = subprocess.run(["ansible-community", "--version"], capture_output=True,
+                             text=True, check=True).stdout
+        yield ("ansible", "ansible (package)", out.split()[-1], "installed locally, not pinned",
+               lambda: pypi_latest("ansible"))
+    except (OSError, subprocess.CalledProcessError):
+        pass
+
+    actions = {}
+    for path in sorted((ROOT / ".github").rglob("*.yml")):
+        for repo, ref in re.findall(r"uses:\s*([\w.-]+/[\w.-]+)(?:/[^@\s]*)?@(v?\d+(?:\.\d+)*)\b",
+                                    path.read_text()):
+            actions.setdefault((repo, ref), []).append(str(path.relative_to(ROOT)))
+    for (repo, ref), paths in actions.items():
+        where = paths[0] + (f" (+{len(paths) - 1} more)" if len(paths) > 1 else "")
+        yield ("action", repo, ref, where, lambda repo=repo: github_latest(repo))
 
     docs = []
     for path in sorted((ROOT / "k8s").rglob("*.yaml")):
