@@ -6,8 +6,8 @@
 # `make ansible-apply` (ansible/roles/k3s). Releases:
 #   https://github.com/k3s-io/k3s/releases
 #   https://github.com/cert-manager/cert-manager/releases
-k3s_version: v1.36.4+k3s1
-cert_manager_version: v1.19.5
+k3s_version: v1.37.2+k3s1
+cert_manager_version: v1.21.3
 
 # Let's Encrypt expiry notices for the ClusterIssuer (ansible/roles/k3s).
 # Not a secret.
@@ -15,7 +15,7 @@ letsencrypt_email: "calle.svensson@zeta-two.com"
 
 # Pinned, same as k3s_version above. Releases:
 # https://github.com/fluxcd/flux2/releases
-flux_version: v2.9.5
+flux_version: v2.10.0
 
 # Flux and per-app secrets are vault-encrypted FILES, not vars here:
 #   ansible/roles/flux/files/flux-infrastructure-deploy-key             (encrypted)
