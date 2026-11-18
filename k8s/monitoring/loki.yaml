@@ -10,14 +10,14 @@ spec:
   chart:
     spec:
       chart: loki
-      version: "7.3.0"
+      version: "21.4.0"
       sourceRef:
         kind: HelmRepository
-        name: grafana
+        name: grafana-community
   values:
     # Service name "loki" (loki.monitoring.svc.cluster.local:3100).
     fullnameOverride: "loki"
-    deploymentMode: SingleBinary
+    deploymentMode: Monolithic
     singleBinary:
       replicas: 1
     # Other deployment-mode components unused.
@@ -83,10 +83,3 @@ spec:
       enabled: false
     lokiCanary:
       enabled: false
-    monitoring:
-      selfMonitoring:
-        enabled: false
-      lokiCanary:
-        enabled: false
-      serviceMonitor:
-        enabled: false
