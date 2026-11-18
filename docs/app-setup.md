@@ -330,7 +330,7 @@ To remove an app completely:
 
 ## Shared Postgres
 
-`k8s/postgres/` runs one Postgres 16 StatefulSet for every app, at
+`k8s/postgres/` runs one Postgres 18 StatefulSet for every app, at
 `postgres.postgres.svc.cluster.local:5432`, on a `local-path` PVC (so
 [Backups](backups.md) are the only recovery mechanism). It's one instance
 rather than one per app to keep memory and upgrade overhead flat as apps

@@ -112,7 +112,7 @@ spec:
           restartPolicy: Never
           containers:
             - name: backup
-              image: alpine:3.22
+              image: alpine:3.24
               envFrom:
                 - secretRef:
                     name: <app>-backup-secrets
@@ -129,7 +129,7 @@ spec:
                   # log-based alerting path — no new alerting infra.
                   trap 'echo "{\"level\":\"ERROR\",\"message\":\"<app> backup failed\"}"' ERR
 
-                  apk add --no-cache postgresql16-client restic >/dev/null
+                  apk add --no-cache postgresql18-client restic >/dev/null
 
                   # Initializes the restic repository on the very first run.
                   restic cat config >/dev/null 2>&1 || restic init

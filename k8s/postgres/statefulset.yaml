@@ -21,9 +21,9 @@ spec:
       containers:
         - name: postgres
           # Debian-based (not alpine): includes ICU, which apps' nondeterministic
-          # collations need. Major version bumps need a dump/restore, not just a
-          # tag change.
-          image: postgres:16
+          # collations need. Major version bumps need a dump/restore into a
+          # fresh volume (new volumeClaimTemplate name), not just a tag change.
+          image: postgres:18.7-trixie
           ports:
             - containerPort: 5432
           env:
@@ -32,11 +32,10 @@ spec:
                 secretKeyRef:
                   name: postgres-superuser
                   key: password
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
-            - name: data
-              mountPath: /var/lib/postgresql/data
+            # 18+ images keep PGDATA at /var/lib/postgresql/<major>/docker.
+            - name: data-pg18
+              mountPath: /var/lib/postgresql
           readinessProbe:
             exec:
               command: ["pg_isready", "-U", "postgres"]
@@ -56,7 +55,7 @@ spec:
   # the only recovery mechanism (docs/backups.md#storage).
   volumeClaimTemplates:
     - metadata:
-        name: data
+        name: data-pg18
       spec:
         accessModes: ["ReadWriteOnce"]
         resources:
