@@ -422,8 +422,8 @@ the backend's `config.toml`. On a fresh setup:
 
 ## One-time aoe2tm staging bootstrap
 
-aoe2tm (`ZetaTwo/aoe2-tournament-manager`) staging runs at `aoe2tm.zetatwo.dev`,
-gated by the `collaborators` policy, from `k8s/aoe2tm/` (`base/` plus
+aoe2tm (`ZetaTwo/aoe2-tournament-manager`, the site is Gather Point) staging runs at
+`gatherpoint.zetatwo.dev`, gated by the `collaborators` policy, from `k8s/aoe2tm/` (`base/` plus
 `overlays/staging/`). It's laid out like canst:
 - a backend Deployment whose initContainers run `migrate` and then `seed`
   (staging test data, idempotent) before each rollout;
@@ -434,6 +434,7 @@ gated by the `collaborators` policy, from `k8s/aoe2tm/` (`base/` plus
 Its secrets are vaulted in `ansible/group_vars/all/aoe2tm.yml`:
 - `aoe2tm_staging_{migrate,app,backup}_db_password`
 - `aoe2tm_staging_paseto_key`
+- `aoe2tm_staging_postmark_token` (the `aoe2tm-staging` Postmark server)
 - `aoe2tm_staging_restic_password`
 
 `ansible/roles/aoe2tm` renders them into an `aoe2tm-config` Secret, holding the
@@ -468,7 +469,7 @@ backend picks it up on its next restart:
 - an S3 bucket, for replays.
 
 The providers' redirect URIs are
-`https://aoe2tm.zetatwo.dev/api/auth/{discord,xbox}/callback`. Restart the
+`https://gatherpoint.zetatwo.dev/api/auth/{discord,xbox}/callback`. Restart the
 backend with `k3s kubectl rollout restart -n aoe2tm-staging deploy/aoe2tm-backend`.
 
 ## One-time aoe2-groups-proxy production secrets bootstrap

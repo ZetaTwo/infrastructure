@@ -15,10 +15,10 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - aoe2tm.zetatwo.dev
+        - gatherpoint.zetatwo.dev
       secretName: aoe2tm-staging-tls
   rules:
-    - host: aoe2tm.zetatwo.dev
+    - host: gatherpoint.zetatwo.dev
       http:
         paths:
           - path: /
@@ -41,10 +41,10 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - aoe2tm.zetatwo.dev
+        - gatherpoint.zetatwo.dev
       secretName: aoe2tm-staging-tls
   rules:
-    - host: aoe2tm.zetatwo.dev
+    - host: gatherpoint.zetatwo.dev
       http:
         paths:
           # Same host as the SPA: single origin, so aoe2tm's auth cookies

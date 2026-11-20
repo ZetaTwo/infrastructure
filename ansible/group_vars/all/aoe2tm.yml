@@ -14,12 +14,19 @@
 aoe2tm_environments:
   - name: staging
     namespace: aoe2tm-staging
-    domain: aoe2tm.zetatwo.dev
+    domain: gatherpoint.zetatwo.dev
     seed: true
     db_name: aoe2tm_staging
     app_db_password: "{{ aoe2tm_staging_app_db_password }}"
     migrate_db_password: "{{ aoe2tm_staging_migrate_db_password }}"
     paseto_key: "{{ aoe2tm_staging_paseto_key }}"
+    # The aoe2tm-staging Postmark server; its token is both username and password.
+    smtp:
+      host: smtp.postmarkapp.com
+      port: 587
+      username: "{{ aoe2tm_staging_postmark_token }}"
+      password: "{{ aoe2tm_staging_postmark_token }}"
+      from: "Gather Point <aoe2tm@zetatwo.dev>"
 
 aoe2tm_staging_migrate_db_password: !vault |
           $ANSIBLE_VAULT;1.1;AES256
@@ -61,3 +68,11 @@ aoe2tm_staging_paseto_key: !vault |
           3533663062353038650a353032346338396234623136373664306538643436343366353565643862
           66663439663135303937363839363561346436306264346333643534623431396238393639616563
           3434313433393364373233336333333663353237356335666538
+aoe2tm_staging_postmark_token: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          36653464623939373137303364363431306238396462353731303937633538313761363730366562
+          6435373539353462313962343263656165313263666639370a333164316463646634333436366130
+          34336634623034313039333061363963636634313437303031376236386234653666376335303038
+          3333393133636537620a353336306331646234646162323838623535373465333063353931383466
+          35623031383536653037323063633564323537646165383030613238313535313362656661393162
+          3565613730363362333364333464333239313133643738366530
