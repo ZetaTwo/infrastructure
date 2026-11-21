@@ -26,7 +26,7 @@ aoe2tm_environments:
       port: 587
       username: "{{ aoe2tm_staging_postmark_token }}"
       password: "{{ aoe2tm_staging_postmark_token }}"
-      from: "Gather Point <aoe2tm@zetatwo.dev>"
+      from: "Gather Point <gatherpoint@zetatwo.dev>"
     # The "Gather Point (dev)" apps, shared with local dev; each has this
     # domain's callback registered as a second redirect URI.
     discord:
