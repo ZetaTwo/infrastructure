@@ -455,7 +455,7 @@ backend's `config.toml`, and an `aoe2tm-config-migrate` Secret, holding
    k3s kubectl exec -it -n aoe2tm-staging deploy/aoe2tm-backend -- \
      aoe2tm-backend --config /etc/aoe2tm/config.toml admin create --display-name <you> --email <you@example.com>
    ```
-   The admin logs in with that email on the login page's "Admin login". To make
+   The admin logs in with that email on `/login/admin` (nothing links to it). To make
    an existing account an admin instead (e.g. one made with Discord), use
    `admin grant --user-id <id>`; the id is in its profile URL, `/users/<id>`.
 
