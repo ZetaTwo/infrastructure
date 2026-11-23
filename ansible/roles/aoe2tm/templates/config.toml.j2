@@ -10,6 +10,10 @@ cookie_domain = "{{ item.domain }}"
 listen_addr = "0.0.0.0:3000"
 public_url = "https://{{ item.domain }}"
 log_format = "json"
+{% if item.chat_url is defined %}
+# The site's Discord server: /chat redirects here, and the footer links it.
+chat_url = {{ item.chat_url | to_json }}
+{% endif %}
 
 [database]
 url = "postgres://{{ item.db_name }}_app:{{ item.app_db_password | urlencode }}@postgres.postgres.svc.cluster.local/{{ item.db_name }}"
