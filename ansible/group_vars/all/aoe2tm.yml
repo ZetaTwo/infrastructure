@@ -12,12 +12,16 @@
 #   smtp:          {host: ..., port: 587, username: ..., password: ..., from: ...}
 #   s3:            {bucket: ..., region: ..., endpoint: ..., access_key_id: ..., secret_access_key: ...}
 #   chat_url:      "https://discord.gg/..."                 (the site's Discord, /chat)
+#   beta:          {key: ...}   (closed beta; 16 random bytes, base64; codes only work with it)
 aoe2tm_environments:
   - name: staging
     namespace: aoe2tm-staging
     domain: gatherpoint.zetatwo.dev
     # The Gather Point Discord server (/chat).
     chat_url: "https://discord.gg/UB3vmGy7D7"
+    # Closed beta: invite codes are sealed with this key; anyone without a redeemed code is kept out.
+    beta:
+      key: "{{ aoe2tm_staging_beta_key }}"
     seed: true
     db_name: aoe2tm_staging
     app_db_password: "{{ aoe2tm_staging_app_db_password }}"
@@ -50,6 +54,9 @@ aoe2tm_environments:
     domain: setgatherpoint.com
     # The Gather Point Discord server (/chat).
     chat_url: "https://discord.gg/UB3vmGy7D7"
+    # Closed beta: invite codes are sealed with this key; anyone without a redeemed code is kept out.
+    beta:
+      key: "{{ aoe2tm_production_beta_key }}"
     db_name: aoe2tm_production
     app_db_password: "{{ aoe2tm_production_app_db_password }}"
     migrate_db_password: "{{ aoe2tm_production_migrate_db_password }}"
@@ -211,3 +218,17 @@ aoe2tm_production_xbox_client_secret: !vault |
           6238326433623066660a316339666534396337623166353236663135626634623731343130323562
           35666463303039316339643365326664643835323066336533623738393031666665666566323161
           6634663030646139666337653465366633363437356166343931
+aoe2tm_staging_beta_key: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          33653233323763646232646332383138306435643965666564363039333839383466343631356238
+          6237663134303938366163663564623566383161353561660a383733393065326139353833343332
+          33356336333031323737663839353031353261323035636262636261646266626631336664373232
+          3339333235656435620a653339303435363264393338336566333531336632653034303537336534
+          62653434396431383361353432393236666537383665303266383239623666366361
+aoe2tm_production_beta_key: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          65666466393435663432303966663430363239366639383063613632326264643531366636623235
+          3766343830396437316136623038666236363338303530390a666462313561646365396132616665
+          66623264336536346233653731663732346635363464366130663066356438323362663564363965
+          6536633235393938360a383737323431623966386133333034363238623962633234313638373232
+          36333262376666306165303937316234643862323262343261366537346533633664

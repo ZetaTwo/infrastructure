@@ -14,6 +14,13 @@ log_format = "json"
 # The site's Discord server: /chat redirects here, and the footer links it.
 chat_url = {{ item.chat_url | to_json }}
 {% endif %}
+{% if item.beta is defined %}
+
+# The closed beta: the API answers only admins and users who redeemed an invite code. The key
+# seals the codes (`aoe2tm-backend invites create`); remove the section to open the site.
+[beta]
+key = {{ item.beta.key | to_json }}
+{% endif %}
 
 [database]
 url = "postgres://{{ item.db_name }}_app:{{ item.app_db_password | urlencode }}@postgres.postgres.svc.cluster.local/{{ item.db_name }}"
