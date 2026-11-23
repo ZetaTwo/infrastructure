@@ -16,10 +16,12 @@ token with **Read & Write** permission.
 
 ### 2. Cloudflare API token
 
-Cloudflare dashboard → **My Profile → API Tokens → Create Token**, using the
-"Edit zone DNS" template, scoped to both `zeta-two.com` and `zetatwo.dev`
-zones (or create one token per zone — either works, `terraform/providers.tf`
-only expects a single `cloudflare_api_token`).
+Cloudflare dashboard → **My Profile → API Tokens → Create Token** (or an
+account-owned token, `cfat_…`; both work), scoped to both `zeta-two.com` and
+`zetatwo.dev` zones, with **Zone → DNS → Edit** (the "Edit zone DNS"
+template) and **Zone → Zone → Read** (for `terraform/data.tf`'s zone
+lookup). One token per zone also works, but `terraform/providers.tf` only
+expects a single `cloudflare_api_token`.
 
 Note the two zone IDs while you're there (zone overview page, right-hand
 sidebar) — you'll need them for the `cloudflare_zones` map, e.g.
