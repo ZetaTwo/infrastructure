@@ -33,8 +33,6 @@ Podman+Caddy to k3s, rather than carried over 1:1:
      `k8s/kustomization.yaml`.
   5. Create the first admin (`aoe2tm-backend admin create`, see
      [App setup](app-setup.md)) and log in once with each provider.
-  6. A mailbox for `contact@setgatherpoint.com` (the app's About page
-     gives it): there's no MX yet.
 - **canst production.** Only `k8s/canst/overlays/staging/` exists. Production
   needs an overlay (`canst.zeta-two.com`, public), a `canst` database and
   environment entry, and its own secrets and backup target. The canst repo's

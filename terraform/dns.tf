@@ -117,7 +117,9 @@ resource "cloudflare_dns_record" "mail_dkim" {
 
 # setgatherpoint.com: Gather Point (aoe2tm) production. Prepared before
 # launch, so only its mail records exist; the web record comes with the
-# production overlay (docs/todo.md). Every record here waits for the zone:
+# production overlay (docs/todo.md). The Google Workspace records (MX, apex
+# SPF, google._domainkey, site verification) live outside Terraform
+# (docs/messaging.md). Every record here waits for the zone:
 # nothing is created until cloudflare_zones has a `setgatherpoint_com` entry
 # (and the Cloudflare token covers the zone, docs/cluster-setup.md).
 locals {

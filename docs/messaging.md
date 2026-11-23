@@ -90,8 +90,11 @@ Postmark `internal` server's SMTP credential.
 - **Exception: Gather Point production** sends from its own domain,
   `noreply@setgatherpoint.com` (the `aoe2tm-production` server), since
   players see it. Its Return-Path, DKIM and the same strict DMARC are
-  Terraform-managed in `terraform/dns.tf`, created once the zone is in
-  `cloudflare_zones`.
+  Terraform-managed in `terraform/dns.tf`. The domain also receives mail
+  (`contact@setgatherpoint.com`, on Google Workspace): its MX, apex SPF
+  (`include:_spf.google.com`), `google._domainkey` and site verification
+  were added by hand in Cloudflare and stay outside Terraform. Workspace
+  mail passes the strict DMARC through Google's DKIM signature.
 - **App config:** an optional `[smtp]` section, rendered by the app's
   role when the environment has a `postmark_token`. The server token is
   both username and password:
