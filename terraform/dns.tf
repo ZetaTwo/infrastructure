@@ -114,3 +114,53 @@ resource "cloudflare_dns_record" "mail_dkim" {
   content  = "\"${each.value.value}\""
   ttl      = 1
 }
+
+# setgatherpoint.com: Gather Point (aoe2tm) production. Prepared before
+# launch, so only its mail records exist; the web record comes with the
+# production overlay (docs/todo.md). Every record here waits for the zone:
+# nothing is created until cloudflare_zones has a `setgatherpoint_com` entry
+# (and the Cloudflare token covers the zone, docs/cluster-setup.md).
+locals {
+  setgatherpoint = contains(keys(var.cloudflare_zones), "setgatherpoint_com") ? {
+    zone_id = var.cloudflare_zones["setgatherpoint_com"]
+  } : null
+  # The DKIM record Postmark shows for setgatherpoint.com (the aoe2tm-production
+  # server sends as noreply@setgatherpoint.com).
+  setgatherpoint_postmark_dkim = {
+    selector = "20261123145727pm"
+    value    = "k=rsa;p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCr5tIoO4OuTxlKMGaaBhpZHEKRIVMShdVNno2itIWLhGW2eJ1TSMhqwn2bUawWYDQS5kh5RD5Vz98517Y5ALMB1od4elTOqjy++/2w+vmsh4+pbWW8J06aGr1Z0ZPoILN87lUGEAeADE4+QCY7gW7lGAP4ZXFH0bcjupueOOip1QIDAQAB"
+  }
+  setgatherpoint_zone = local.setgatherpoint == null ? {} : { setgatherpoint = local.setgatherpoint }
+}
+
+# Bounces go to Postmark through the domain itself; SPF is checked here.
+resource "cloudflare_dns_record" "setgatherpoint_mail_return_path" {
+  for_each = local.setgatherpoint_zone
+  zone_id  = each.value.zone_id
+  name     = "pm-bounces"
+  type     = "CNAME"
+  content  = "pm.mtasv.net"
+  ttl      = 1
+  proxied  = false
+}
+
+resource "cloudflare_dns_record" "setgatherpoint_mail_dkim" {
+  for_each = local.setgatherpoint_zone
+  zone_id  = each.value.zone_id
+  name     = "${local.setgatherpoint_postmark_dkim.selector}._domainkey"
+  type     = "TXT"
+  content  = "\"${local.setgatherpoint_postmark_dkim.value}\""
+  ttl      = 1
+}
+
+# The same policy as zetatwo.dev: Postmark's DKIM signature
+# (d=setgatherpoint.com) aligns strictly, so only mail that fails DKIM is
+# rejected.
+resource "cloudflare_dns_record" "setgatherpoint_dmarc" {
+  for_each = local.setgatherpoint_zone
+  zone_id  = each.value.zone_id
+  name     = "_dmarc"
+  type     = "TXT"
+  content  = "\"v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s\""
+  ttl      = 1
+}

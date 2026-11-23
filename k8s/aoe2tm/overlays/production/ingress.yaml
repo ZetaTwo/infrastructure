@@ -1,0 +1,34 @@
+# Public, so no auth middleware and a single Ingress: /api to the backend
+# (including the login providers' callbacks), everything else to the SPA.
+# Same host for both: single origin, so aoe2tm's auth cookies stay same-site
+# with no CORS.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aoe2tm
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - setgatherpoint.com
+      secretName: aoe2tm-production-tls
+  rules:
+    - host: setgatherpoint.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: aoe2tm-backend
+                port:
+                  number: 3000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aoe2tm-frontend
+                port:
+                  number: 80

@@ -36,6 +36,7 @@ ghcr_pull_secret_namespaces:
   - aoe2-groups
   - aoe2-groups-staging
   - aoe2-tournament-bot
+  - aoe2tm-production
   - aoe2tm-staging
   - canst-staging
   - obfuscation-challenge-staging

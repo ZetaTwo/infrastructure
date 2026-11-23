@@ -264,6 +264,10 @@ any specific purpose — any DNS record or app can use any label. Currently:
   — see [App setup](app-setup.md#staging-and-production)), also gated
   behind that same OAuth gate.
 
+- `setgatherpoint_com` → `setgatherpoint.com` — Gather Point (aoe2tm)
+  production, on its own domain. Optional until launch: its records in
+  `terraform/dns.tf` are only created once this label is set.
+
 The convention going forward: `<app>.zetatwo.dev` = staging (auth-gated),
 `<app>.zeta-two.com` = production (public). Nothing stops the zone being
 used for something else too.

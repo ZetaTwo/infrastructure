@@ -87,6 +87,11 @@ Postmark `internal` server's SMTP credential.
     generates. Its signature (`d=zetatwo.dev`) aligns even under strict
     DMARC, and that alone passes DMARC. Mail that fails DKIM is
     rejected, not sent to spam, so a broken setup fails loudly.
+- **Exception: Gather Point production** sends from its own domain,
+  `noreply@setgatherpoint.com` (the `aoe2tm-production` server), since
+  players see it. Its Return-Path, DKIM and the same strict DMARC are
+  Terraform-managed in `terraform/dns.tf`, created once the zone is in
+  `cloudflare_zones`.
 - **App config:** an optional `[smtp]` section, rendered by the app's
   role when the environment has a `postmark_token`. The server token is
   both username and password:
