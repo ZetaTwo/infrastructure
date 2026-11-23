@@ -1,0 +1,56 @@
+# Two Ingresses on one host, as for canst: only page paths get the auth
+# gate's errors middleware (which turns every 401 into the sign-in
+# redirect); /api gets the auth gate alone, so the backend's responses pass
+# through untouched. (docs/app-setup.md#gated-apps-with-an-api)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aoe2-groups
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-errors@kubernetescrd,auth-oauth2-proxy-auth-collaborators@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - aoe2-groups.zetatwo.dev
+      secretName: aoe2-groups-staging-tls
+  rules:
+    - host: aoe2-groups.zetatwo.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aoe2-groups-frontend
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aoe2-groups-api
+  annotations:
+    # Auth only, no errors middleware (see above). No cert-manager
+    # annotation: it reuses the certificate the `aoe2-groups` Ingress requests.
+    traefik.ingress.kubernetes.io/router.middlewares: auth-oauth2-proxy-auth-collaborators@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - aoe2-groups.zetatwo.dev
+      secretName: aoe2-groups-staging-tls
+  rules:
+    - host: aoe2-groups.zetatwo.dev
+      http:
+        paths:
+          # Traefik's longer-rule-wins priority sends /api here rather than
+          # to the `aoe2-groups` Ingress.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: aoe2-groups-backend
+                port:
+                  number: 8080

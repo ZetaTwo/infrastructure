@@ -1,4 +1,4 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: aoe2-groups-proxy-staging
+  name: aoe2-groups-staging

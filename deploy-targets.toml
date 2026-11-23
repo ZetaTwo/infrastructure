@@ -17,9 +17,15 @@ image = "ghcr.io/zetatwo/aoe2-groups-proxy"
 policy = "release"
 
 [[target]]
-name = "aoe2-groups-proxy/staging"
-file = "k8s/aoe2-groups-proxy/overlays/staging/kustomization.yaml"
-image = "ghcr.io/zetatwo/aoe2-groups-proxy"
+name = "aoe2-groups-backend/staging"
+file = "k8s/aoe2-groups/overlays/staging/kustomization.yaml"
+image = "ghcr.io/zetatwo/aoe2-groups-backend"
+policy = "main"
+
+[[target]]
+name = "aoe2-groups-frontend/staging"
+file = "k8s/aoe2-groups/overlays/staging/kustomization.yaml"
+image = "ghcr.io/zetatwo/aoe2-groups-frontend"
 policy = "main"
 
 [[target]]

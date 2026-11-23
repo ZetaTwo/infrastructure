@@ -20,7 +20,7 @@ flux_version: v2.10.0
 # Flux and per-app secrets are vault-encrypted FILES, not vars here:
 #   ansible/roles/flux/files/flux-infrastructure-deploy-key             (encrypted)
 #   ansible/roles/flux/files/flux-infrastructure-deploy-key.pub         (plain)
-#   ansible/roles/aoe2_groups_proxy/files/{production,staging}/{service-account.json,sheet-ids.toml} (encrypted)
+#   ansible/roles/aoe2_groups/files/{production,staging}/{service-account.json,sheet-ids.toml} (encrypted)
 #   ansible/roles/aoe2_tournament_bot/files/{config.toml,service-account.json} (encrypted)
 # Bootstrap steps: docs/app-setup.md, docs/cluster-setup.md.
 # GitHub's SSH host keys are fetched live from https://api.github.com/meta
@@ -33,8 +33,8 @@ ghcr_pull_username: "ZetaTwo"
 # Namespaces needing a copy of ghcr-pull-secret (Secrets can't cross
 # namespaces). Add a namespace here when a new app needs private pulls.
 ghcr_pull_secret_namespaces:
-  - aoe2-groups-proxy
-  - aoe2-groups-proxy-staging
+  - aoe2-groups
+  - aoe2-groups-staging
   - aoe2-tournament-bot
   - aoe2tm-staging
   - canst-staging

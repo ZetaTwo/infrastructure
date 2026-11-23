@@ -23,8 +23,8 @@
       tags: flux
     - role: ghcr_pull_secret
       tags: ghcr_pull_secret
-    - role: aoe2_groups_proxy
-      tags: aoe2_groups_proxy
+    - role: aoe2_groups
+      tags: aoe2_groups
     - role: aoe2_tournament_bot
       tags: aoe2_tournament_bot
     - role: oauth2_proxy

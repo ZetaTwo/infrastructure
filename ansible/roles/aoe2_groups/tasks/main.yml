@@ -1,28 +1,28 @@
 ---
-- name: Ensure aoe2-groups-proxy namespaces exist
+- name: Ensure aoe2-groups namespaces exist
   kubernetes.core.k8s:
     name: "{{ item.namespace }}"
     api_version: v1
     kind: Namespace
     state: present
-  loop: "{{ aoe2_groups_proxy_environments }}"
+  loop: "{{ aoe2_groups_environments }}"
   loop_control:
     label: "{{ item.name }}"
 
-- name: Apply aoe2-groups-proxy secrets
+- name: Apply aoe2-groups secrets
   kubernetes.core.k8s:
     state: present
     definition:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: aoe2-groups-proxy-secrets
+        name: aoe2-groups-secrets
         namespace: "{{ item.namespace }}"
       type: Opaque
       stringData:
         service-account.json: "{{ lookup('file', item.name + '/service-account.json') | string }}"
         sheet-ids.toml: "{{ lookup('file', item.name + '/sheet-ids.toml') | string }}"
-  loop: "{{ aoe2_groups_proxy_environments }}"
+  loop: "{{ aoe2_groups_environments }}"
   loop_control:
     label: "{{ item.name }}"
   no_log: true

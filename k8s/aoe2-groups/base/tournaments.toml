@@ -1,0 +1,436 @@
+# Tournament routing for aoe2-groups-backend, mounted from a ConfigMap
+# (kustomize configMapGenerator, so editing this file rolls the pods).
+#
+# - slug          the tournament's URL segment: /<slug>/<bracket>.
+# - name          display name on the index pages.
+# - brackets[]    matches a sheet tab; group_ranges are the A1 ranges within
+#                 that tab — one entry per group. Order determines Group A,
+#                 Group B, … Bracket names must be unique per tournament, and
+#                 "all" is reserved (the /<slug>/all overlay).
+#
+# Tournaments are listed on the index page in this order, so add new ones
+# at the top. Each one with brackets also needs a slug = "<sheet_id>" line
+# in the vaulted sheet-ids.toml (ansible/roles/aoe2_groups/files/), and the
+# sheet must be shared with the runtime service account as Viewer.
+
+[[tournaments]]
+slug = "royal-tcc"
+name = "Royal TCC"
+
+[[tournaments.brackets]]
+name = "Emperor"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "King"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28"]
+
+[[tournaments.brackets]]
+name = "Duke"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Marquess"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Earl"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Viscount"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Baron"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Peasant"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments]]
+slug = "tcc3"
+name = "TCC 3"
+
+[[tournaments.brackets]]
+name = "Champions"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Monks"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28"]
+
+[[tournaments.brackets]]
+name = "Mangonels"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28"]
+
+[[tournaments.brackets]]
+name = "Knights"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Rams"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Light Cavs"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Pikemen"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Longswords"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Crossbows"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Scouts"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Archers"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Militia"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments]]
+slug = "ttlc2"
+name = "TTLC 2"
+
+[[tournaments.brackets]]
+name = "Obsidian"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Titanium"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28"]
+
+[[tournaments.brackets]]
+name = "Chromium"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Nickel"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Cobalt"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Copper"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Zinc"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Aluminium"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Tin"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Lead"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Steel"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Iron"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Brick"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Stone"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Granite"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Slate"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Concrete"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Gravel"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Sand"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Ash"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Dirt"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+
+[[tournaments]]
+slug = "tcc2"
+name = "TCC 2"
+
+[[tournaments.brackets]]
+name = "Champions"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Monks"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Mangonels"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Knights"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Pikemen"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Longswords"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Crossbows"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Archers"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Militia"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+
+[[tournaments]]
+slug = "tsdc"
+name = "TSDC"
+
+[[tournaments.brackets]]
+name = "Champions"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Monks"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Mangonels"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Knights"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Crossbows"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Militia"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+
+[[tournaments]]
+slug = "spec2-continental"
+name = "SPEC 2 Continental"
+
+[[tournaments.brackets]]
+name = "Warlord"
+group_ranges = ["G4:P9", "V4:AE9", "AM4:AV9", "BB4:BK9", "G23:P28", "V23:AE28", "AM23:AV28", "BB23:BK28"]
+
+[[tournaments.brackets]]
+name = "Conqueror"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "General"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Chieftain"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Commander"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Warrior"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Mercenary"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Officer"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Watcher"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Recruit"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Militia"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28"]
+
+
+[[tournaments]]
+slug = "spec2-stronghold"
+name = "SPEC 2 Stronghold"
+
+[[tournaments.brackets]]
+name = "Palace"
+group_ranges = ["G4:P9", "V4:AE9", "AM4:AV9", "BB4:BK9", "G23:P28", "V23:AE28", "AM23:AV28", "BB23:BK28"]
+
+[[tournaments.brackets]]
+name = "Fortress"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Castle"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Krepost"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Donjon"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Keep"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Guard"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Tower"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Outpost"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE27"]
+
+
+[[tournaments]]
+slug = "spec2-thalassocracy"
+name = "SPEC 2 Thalassocracy"
+
+[[tournaments.brackets]]
+name = "Ocean"
+group_ranges = ["G4:P9", "V4:AE9", "AM4:AV9", "BB4:BK9", "G23:P28", "V23:AE28", "AM23:AV28", "BB23:BK28"]
+
+[[tournaments.brackets]]
+name = "Coast"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Archipelago"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Reef"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Bay"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Channel"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Lake"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Pond"
+group_ranges = ["G4:P9", "V4:AE9", "AM4:AV9", "BB4:BK9"]
+
+[[tournaments.brackets]]
+name = "River"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Beach"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+
+[[tournaments]]
+slug = "spec2-nomad"
+name = "SPEC 2 Nomad"
+
+[[tournaments.brackets]]
+name = "Trailblazer"
+group_ranges = ["G4:P9", "V4:AE9", "AM4:AV9", "BB4:BK9", "G23:P28", "V23:AE28", "AM23:AV28", "BB23:BK28"]
+
+[[tournaments.brackets]]
+name = "Explorer"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Wayfarer"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Pioneer"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Discoverer"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Traveller"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Pathfinder"
+group_ranges = ["G4:P9", "V4:AE9", "G23:P28", "V23:AE28"]
+
+[[tournaments.brackets]]
+name = "Vagabond"
+group_ranges = ["G4:P9", "V4:AE9"]
+
+[[tournaments.brackets]]
+name = "Wanderer"
+group_ranges = ["G4:P9", "V4:AE9"]

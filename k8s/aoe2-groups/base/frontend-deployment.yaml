@@ -1,0 +1,39 @@
+# Caddy serving the built SPA only; the Ingress routes /api to aoe2-groups-backend.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aoe2-groups-frontend
+  labels:
+    app: aoe2-groups-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aoe2-groups-frontend
+  template:
+    metadata:
+      labels:
+        app: aoe2-groups-frontend
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      containers:
+        - name: aoe2-groups-frontend
+          # Always overridden by each overlay's images: newTag:.
+          image: ghcr.io/zetatwo/aoe2-groups-frontend:placeholder-overridden-by-overlay
+          ports:
+            - containerPort: 80
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
