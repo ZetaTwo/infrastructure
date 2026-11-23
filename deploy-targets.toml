@@ -11,9 +11,15 @@
 # `- name: <image>` line.
 
 [[target]]
-name = "aoe2-groups-proxy/production"
-file = "k8s/aoe2-groups-proxy/overlays/production/kustomization.yaml"
-image = "ghcr.io/zetatwo/aoe2-groups-proxy"
+name = "aoe2-groups-backend/production"
+file = "k8s/aoe2-groups/overlays/production/kustomization.yaml"
+image = "ghcr.io/zetatwo/aoe2-groups-backend"
+policy = "release"
+
+[[target]]
+name = "aoe2-groups-frontend/production"
+file = "k8s/aoe2-groups/overlays/production/kustomization.yaml"
+image = "ghcr.io/zetatwo/aoe2-groups-frontend"
 policy = "release"
 
 [[target]]

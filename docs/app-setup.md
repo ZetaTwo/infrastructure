@@ -127,7 +127,7 @@ adding an app is a subdirectory, one line in the root file and a
    listing them (`namespace.yaml` included as a resource, plus a top-level
    `namespace: <name>` in that file) — follow `k8s/aoe2-tournament-bot/`
    (headless, single environment) as the reference, or
-   `k8s/aoe2-groups-proxy/` (web app with a staging + production split —
+   `k8s/aoe2-groups/` (web app with a staging + production split —
    see [Staging and production](#staging-and-production) below) if the new
    app needs the same split. The explicit namespace matters: unlike plain
    `kubectl apply`, Flux's kustomize-controller does **not** default
@@ -154,7 +154,7 @@ idempotently), and applies the `Secret` as a `kubernetes.core.k8s` task
 with an inline `definition:`, reading the encrypted files straight into
 `stringData` via `lookup('file', role_path + '/files/...')` (which
 transparently decrypts them) — nothing is ever written to disk on the
-node. Follow `ansible/roles/aoe2_groups_proxy` as the reference (named
+node. Follow `ansible/roles/aoe2_groups` as the reference (named
 after the app, not "secrets," since it's that app's whole Ansible
 footprint and may end up doing more than secrets later). The app's
 Deployment (in `k8s/`) references that Secret by name only; Flux never
@@ -164,13 +164,13 @@ secrets-encryption system (e.g. SOPS) alongside `ansible-vault`.
 Private images: `ghcr-pull-secret` (`ansible/roles/ghcr_pull_secret`)
 exists for pulling private `ghcr.io` images — reference it from any app's
 Deployment with `imagePullSecrets: [{name: ghcr-pull-secret}]` (see
-`k8s/aoe2-groups-proxy/base/deployment.yaml`). Since k8s Secrets can't be
+`k8s/aoe2-groups/base/backend-deployment.yaml`). Since k8s Secrets can't be
 referenced across namespaces, the role loops over
 `ghcr_pull_secret_namespaces` (`ansible/group_vars/all/cluster.yml`) and creates one copy
 of the same underlying token per namespace — add a new app's namespace to
 that list if it needs private image pulls, no other Ansible changes
 needed. Note that GitHub package visibility is one-way — once a package is
-made public it can't be made private again — so `aoe2-groups-proxy` stays
+made public it can't be made private again — so the `aoe2-groups-*` images stay
 private and pulls via this secret rather than being flipped public.
 
 Image updates: the app's own CI only builds and pushes images. It then
@@ -223,10 +223,12 @@ secrets.
 ## Staging and production
 
 Apps that need it get a kustomize `base` + `overlays/{staging,production}`
-split (`k8s/aoe2-groups-proxy/` is the reference) instead of a flat
+split (`k8s/aoe2-groups/` is the reference) instead of a flat
 `k8s/<name>/` directory:
 
-- `base/` holds the Deployment/Service common to both environments, with an
+- `base/` holds the Deployments/Services common to both environments (and
+  any shared config, e.g. aoe2-groups' `tournaments.toml` as a
+  `configMapGenerator`, whose hashed name rolls the pods on change), with an
   inert placeholder image tag — every overlay's own `images:` transformer
   always overrides it by repository name, so the literal placeholder is
   never actually deployed.
@@ -235,7 +237,7 @@ split (`k8s/aoe2-groups-proxy/` is the reference) instead of a flat
   `collaborators` policy — see
   [Auth (Google login via oauth2-proxy) bootstrap](#one-time-auth-google-login-via-oauth2-proxy-bootstrap)
   below), any environment-specific config as a strategic-merge patch (e.g.
-  `allowed-origins-patch.yaml`), and an `images: newTag:` the deploy
+  canst's `seed-patch.yaml`), and an `images: newTag:` the deploy
   workflow updates after every push to the app's `main`.
 - `overlays/production/` mirrors it with the app's real namespace, host
   `<name>.zeta-two.com` (public, no auth middleware), and an `images:
@@ -472,63 +474,43 @@ The providers' redirect URIs are
 `https://gatherpoint.zetatwo.dev/api/auth/{discord,xbox}/callback`. Restart the
 backend with `k3s kubectl rollout restart -n aoe2tm-staging deploy/aoe2tm-backend`.
 
-## One-time aoe2-groups-proxy production secrets bootstrap
+## One-time aoe2-groups secrets bootstrap
 
-1. Export the runtime service account's key and fetch the real
-   `sheet-ids.toml`:
+Each environment gets its own copy of the Secret, from its own
+`ansible/roles/aoe2_groups/files/<name>/` pair. For aoe2-groups
+specifically, staging deliberately reuses production's service account and
+Google Sheets rather than provisioning dedicated ones, so the two pairs have
+identical content. This was a one-off judgment call for this app (low risk:
+read-only Sheet access), not the default policy — a future app with a
+staging/production split should default to separate staging credentials
+unless there's a similar reason not to.
+
+1. Export a key for the runtime service account, and write
+   `sheet-ids.toml` (a `[sheet_ids]` table of `<slug> = "<sheet id>"`, one
+   per tournament with brackets in `k8s/aoe2-groups/base/tournaments.toml`;
+   see `aoe2-streaming`'s `aoe2-groups/backend/sheet-ids.example.toml`):
    ```sh
    gcloud iam service-accounts keys create service-account.json \
      --iam-account=groups-proxy@aoe2-streaming.iam.gserviceaccount.com \
      --project=aoe2-streaming
-   gcloud secrets versions access latest \
-     --secret=aoe2-groups-proxy-sheet-ids --project=aoe2-streaming \
-     > sheet-ids.toml
    ```
-2. Move both into the role's `files/production/` and vault-encrypt them in
-   place:
+2. Copy both into `files/production/` and `files/staging/` and
+   vault-encrypt them in place:
    ```sh
-   mv service-account.json sheet-ids.toml ansible/roles/aoe2_groups_proxy/files/production/
-   ansible-vault encrypt ansible/roles/aoe2_groups_proxy/files/production/service-account.json \
-     --vault-password-file ansible/.vault_pass
-   ansible-vault encrypt ansible/roles/aoe2_groups_proxy/files/production/sheet-ids.toml \
-     --vault-password-file ansible/.vault_pass
+   for env in production staging; do
+     cp service-account.json sheet-ids.toml ansible/roles/aoe2_groups/files/$env/
+     ansible-vault encrypt ansible/roles/aoe2_groups/files/$env/service-account.json \
+       ansible/roles/aoe2_groups/files/$env/sheet-ids.toml \
+       --vault-password-file ansible/.vault_pass
+   done
+   rm service-account.json sheet-ids.toml
    ```
-3. `make ansible-apply`.
+3. `make ansible-apply TAGS=aoe2_groups`.
 
-## One-time aoe2-groups-proxy staging secrets bootstrap
-
-The per-environment split under `ansible/roles/aoe2_groups_proxy/files/`
-supports fully separate credentials per environment (each namespace gets
-its own copy of the Secret, from its own `files/<name>/` pair) — but for
-aoe2-groups-proxy specifically, staging deliberately reuses production's
-service account and Google Sheet rather than provisioning dedicated ones.
-This was a one-off, judgment call for this app (low risk: read-mostly Sheet
-access, no destructive writes), not the default policy — a future app
-added to this split should default to separate staging credentials unless
-there's a similar reason not to.
-
-1. Reuse the same service account and Sheet as production (see
-   [production secrets bootstrap](#one-time-aoe2-groups-proxy-production-secrets-bootstrap)
-   above), fetching a fresh key the same way:
-   ```sh
-   gcloud iam service-accounts keys create service-account.json \
-     --iam-account=groups-proxy@aoe2-streaming.iam.gserviceaccount.com \
-     --project=aoe2-streaming
-   gcloud secrets versions access latest \
-     --secret=aoe2-groups-proxy-sheet-ids --project=aoe2-streaming \
-     > sheet-ids.toml
-   ```
-2. Move both into the role's `files/staging/` and vault-encrypt them in
-   place — still a separate vaulted copy from `files/production/` (each
-   namespace needs its own Secret object), just with identical content:
-   ```sh
-   mv service-account.json sheet-ids.toml ansible/roles/aoe2_groups_proxy/files/staging/
-   ansible-vault encrypt ansible/roles/aoe2_groups_proxy/files/staging/service-account.json \
-     --vault-password-file ansible/.vault_pass
-   ansible-vault encrypt ansible/roles/aoe2_groups_proxy/files/staging/sheet-ids.toml \
-     --vault-password-file ansible/.vault_pass
-   ```
-3. `make ansible-apply`.
+Adding a tournament later: `ansible-vault edit` both `sheet-ids.toml`
+files, `make ansible-apply TAGS=aoe2_groups`, then edit `tournaments.toml`
+and push (the ConfigMap change restarts the backend, which then also reads
+the new Secret).
 
 ## One-time aoe2-tournament-bot secrets bootstrap
 
@@ -557,7 +539,7 @@ there's a similar reason not to.
 The observability stack itself (Vector, VictoriaMetrics, Loki, Grafana,
 Alertmanager — see [Monitoring](monitoring.md) and `k8s/monitoring/`) is
 entirely Flux-managed, but its secrets are not, following the same pattern
-as `aoe2-groups-proxy`/`aoe2-tournament-bot` above (`ansible/roles/
+as `aoe2-groups`/`aoe2-tournament-bot` above (`ansible/roles/
 monitoring`):
 
 1. Create a Discord webhook (Server Settings → Integrations → Webhooks) in

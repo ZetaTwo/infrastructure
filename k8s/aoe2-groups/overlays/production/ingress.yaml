@@ -1,7 +1,9 @@
+# Public, so no auth middleware and a single Ingress: /api to the backend,
+# everything else to the frontend (longest path wins).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: aoe2-groups-proxy
+  name: aoe2-groups
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
@@ -14,10 +16,17 @@ spec:
     - host: aoe2-groups.zeta-two.com
       http:
         paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: aoe2-groups-backend
+                port:
+                  number: 8080
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: aoe2-groups-proxy
+                name: aoe2-groups-frontend
                 port:
-                  number: 8080
+                  number: 80

@@ -68,7 +68,7 @@ make tf-plan       # review infrastructure changes
 make tf-apply      # create/update the server, firewall, DNS records
                     # (also regenerates ansible/inventory/hosts.yaml)
 make ansible-apply  # install/configure k3s, cert-manager, and Flux CD
-make ansible-apply TAGS=aoe2_groups_proxy  # only the listed role(s)
+make ansible-apply TAGS=aoe2_groups  # only the listed role(s)
 ```
 
 Every role in `ansible/site.yaml` is tagged with its own name. `TAGS`

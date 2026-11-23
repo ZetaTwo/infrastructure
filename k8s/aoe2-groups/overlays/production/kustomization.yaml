@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: aoe2-groups
+resources:
+  - ../../base
+  - namespace.yaml
+  - ingress.yaml
+images:
+  # Set by the deploy workflow to the newest release tags (deploy-targets.toml).
+  # Each newTag must stay directly under its own `- name:` line.
+  - name: ghcr.io/zetatwo/aoe2-groups-backend
+    newTag: v2.0.0
+  - name: ghcr.io/zetatwo/aoe2-groups-frontend
+    newTag: v2.0.0
