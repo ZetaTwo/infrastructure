@@ -68,7 +68,13 @@ make tf-plan       # review infrastructure changes
 make tf-apply      # create/update the server, firewall, DNS records
                     # (also regenerates ansible/inventory/hosts.yaml)
 make ansible-apply  # install/configure k3s, cert-manager, and Flux CD
+make ansible-apply TAGS=aoe2_groups_proxy  # only the listed role(s)
 ```
+
+Every role in `ansible/site.yaml` is tagged with its own name. `TAGS`
+takes a comma-separated list and skips every other role, so include any
+role the change depends on (for a new app's namespace, `ghcr_pull_secret`
+as well as the app's own role).
 
 If the server ever needs to be rebuilt from nothing: `make tf-apply` then
 `make ansible-apply` fully restores it. Apps themselves are **not**

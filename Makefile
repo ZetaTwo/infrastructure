@@ -9,8 +9,10 @@ tf-plan:
 tf-apply:
 	cd terraform && terraform apply
 
+# TAGS=<role>[,<role>...] applies only those roles (each role in site.yaml is
+# tagged with its own name); without it, the whole playbook runs.
 ansible-apply:
-	cd ansible && ansible-playbook site.yaml --vault-password-file .vault_pass
+	cd ansible && ansible-playbook site.yaml --vault-password-file .vault_pass $(if $(TAGS),--tags $(TAGS))
 
 lint:
 	cd ansible && uvx --from ansible-core ansible-galaxy collection install -r requirements.yml

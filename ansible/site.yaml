@@ -6,21 +6,40 @@
     # Lets kubernetes.core modules skip repeating kubeconfig: per task.
     K8S_AUTH_KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
+  # Each role is tagged with its own name, so one role can be applied on its
+  # own: make ansible-apply TAGS=<role>[,<role>...]
   roles:
-    - users
-    - sshd
-    - unattended_upgrades
-    - reboot_required_metric
-    - k3s
-    - flux
-    - ghcr_pull_secret
-    - aoe2_groups_proxy
-    - aoe2_tournament_bot
-    - oauth2_proxy
-    - monitoring
-    - notify
-    - postgres
-    - canst
-    - aoe2tm
-    - obfuscation_challenge
-    - backups
+    - role: users
+      tags: users
+    - role: sshd
+      tags: sshd
+    - role: unattended_upgrades
+      tags: unattended_upgrades
+    - role: reboot_required_metric
+      tags: reboot_required_metric
+    - role: k3s
+      tags: k3s
+    - role: flux
+      tags: flux
+    - role: ghcr_pull_secret
+      tags: ghcr_pull_secret
+    - role: aoe2_groups_proxy
+      tags: aoe2_groups_proxy
+    - role: aoe2_tournament_bot
+      tags: aoe2_tournament_bot
+    - role: oauth2_proxy
+      tags: oauth2_proxy
+    - role: monitoring
+      tags: monitoring
+    - role: notify
+      tags: notify
+    - role: postgres
+      tags: postgres
+    - role: canst
+      tags: canst
+    - role: aoe2tm
+      tags: aoe2tm
+    - role: obfuscation_challenge
+      tags: obfuscation_challenge
+    - role: backups
+      tags: backups
