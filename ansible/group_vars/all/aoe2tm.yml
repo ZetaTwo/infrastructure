@@ -68,6 +68,14 @@ aoe2tm_environments:
     # environments (one monthly quota). Its stages sync every 4 hours.
     challonge:
       api_key: "{{ aoe2tm_challonge_api_key }}"
+    # Replay uploads: a Hetzner Object Storage bucket per environment in fsn1,
+    # one key for both.
+    s3:
+      bucket: "zetatwo-gatherpoint-staging"
+      region: "fsn1"
+      endpoint: "https://fsn1.your-objectstorage.com"
+      access_key_id: "{{ aoe2tm_s3_access_key_id }}"
+      secret_access_key: "{{ aoe2tm_s3_secret_access_key }}"
   # Live since v0.1.0 (2026-11-24), still in the closed beta.
   - name: production
     namespace: aoe2tm-production
@@ -121,6 +129,14 @@ aoe2tm_environments:
     # environments (one monthly quota). Its stages sync every 4 hours.
     challonge:
       api_key: "{{ aoe2tm_challonge_api_key }}"
+    # Replay uploads: a Hetzner Object Storage bucket per environment in fsn1,
+    # one key for both.
+    s3:
+      bucket: "zetatwo-gatherpoint-production"
+      region: "fsn1"
+      endpoint: "https://fsn1.your-objectstorage.com"
+      access_key_id: "{{ aoe2tm_s3_access_key_id }}"
+      secret_access_key: "{{ aoe2tm_s3_secret_access_key }}"
 
 aoe2tm_staging_migrate_db_password: !vault |
           $ANSIBLE_VAULT;1.1;AES256
@@ -356,3 +372,18 @@ aoe2tm_challonge_api_key: !vault |
           6464643237323631660a393330333630356266343165326232636466643732323264663637313936
           36396666616437346465376230636465636537623031323831323362303731326630636130666264
           3466643634353932363534623861666436346333656435393032
+aoe2tm_s3_access_key_id: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          62316231643033366438666133636135343164303731353666366366326230643062663561373338
+          3634643162383338663137623534303736386662663932340a623138333331666137336365383465
+          35633465613436623335346338353332346133626432323936353137613132313062363930363461
+          3766653537343464660a306139376466363838303038363431326531643835353937393636356565
+          33336263313161353837326330333463393264383739316130663763336139363637
+aoe2tm_s3_secret_access_key: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          32316232353666656533326561623062353064386461636238323533396339333765343036303066
+          3462356230633766666561616130336162303235333665350a313864353064633335323465353037
+          64393339373438656335393561346133323361393836373062303936303634383438316135616162
+          3932323238633739650a353135616562613763303239616334643832323632346631646564326561
+          39373566383131623864616661313863656163316134323865663061346434336330326237353736
+          6636666637396463306362633866616665393131343531643336
