@@ -17,9 +17,8 @@ Podman+Caddy to k3s, rather than carried over 1:1:
   canst-staging ([Backups](backups.md#restore)), but against a database
   with no user data yet. Repeat periodically, and once real data exists.
 - **aoe2tm production** (Gather Point, `setgatherpoint.com`), live since
-  v0.1.0 (2026-11-24), in the closed beta; Postmark verified. Left: create
-  the first admin (`aoe2tm-backend admin create`, see
-  [App setup](app-setup.md)), and log in once with each provider.
+  v0.1.0 (2026-11-24), in the closed beta; Postmark verified, first admin
+  granted. Left: log in once with each provider.
 - **canst production.** Only `k8s/canst/overlays/staging/` exists. Production
   needs an overlay (`canst.zeta-two.com`, public), a `canst` database and
   environment entry, and its own secrets and backup target. The canst repo's
