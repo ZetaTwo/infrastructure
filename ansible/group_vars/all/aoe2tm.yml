@@ -60,6 +60,10 @@ aoe2tm_environments:
       client_id: "dl0hcwckah3rlpougjrmor6k67qc8z"
       client_secret: "{{ aoe2tm_staging_twitch_client_secret }}"
       webhook_secret: "{{ aoe2tm_staging_twitch_webhook_secret }}"
+    # Bracket import from Google Sheets: one API key (the Google Cloud project
+    # "Gather Point", restricted to the Sheets API) for both environments.
+    google_sheets:
+      api_key: "{{ aoe2tm_google_sheets_api_key }}"
   # Live since v0.1.0 (2026-11-24), still in the closed beta.
   - name: production
     namespace: aoe2tm-production
@@ -105,6 +109,10 @@ aoe2tm_environments:
       client_id: "svwr7datymq2s6arn16adut864vtap"
       client_secret: "{{ aoe2tm_production_twitch_client_secret }}"
       webhook_secret: "{{ aoe2tm_production_twitch_webhook_secret }}"
+    # Bracket import from Google Sheets: one API key (the Google Cloud project
+    # "Gather Point", restricted to the Sheets API) for both environments.
+    google_sheets:
+      api_key: "{{ aoe2tm_google_sheets_api_key }}"
 
 aoe2tm_staging_migrate_db_password: !vault |
           $ANSIBLE_VAULT;1.1;AES256
@@ -322,3 +330,11 @@ aoe2tm_production_twitch_webhook_secret: !vault |
           61333666346639383639613032663334323062636636613131636562643939613033323833316134
           65346331633239343639653239613338366235353535306164623735363764383764396361373337
           64636264316365376231
+aoe2tm_google_sheets_api_key: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          33633534383663386130383564356365373661633939316466363232363533383239666432306633
+          3935323339313762643437303163643337616133316464660a356236366539333063333261366330
+          61666436666631326136666637373238666166353737666135353535333034663737633039323364
+          6336316364383836390a653161383938366665313035613136373133613362636365633265626261
+          63396461653262376533613634616131663630323330303364376630383735356639646239303761
+          6666306631396239306138313331353363613165356532663133
