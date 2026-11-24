@@ -64,6 +64,10 @@ aoe2tm_environments:
     # "Gather Point", restricted to the Sheets API) for both environments.
     google_sheets:
       api_key: "{{ aoe2tm_google_sheets_api_key }}"
+    # Bracket import from Challonge: the account's API v1 key, shared by both
+    # environments (one monthly quota). Its stages sync every 4 hours.
+    challonge:
+      api_key: "{{ aoe2tm_challonge_api_key }}"
   # Live since v0.1.0 (2026-11-24), still in the closed beta.
   - name: production
     namespace: aoe2tm-production
@@ -113,6 +117,10 @@ aoe2tm_environments:
     # "Gather Point", restricted to the Sheets API) for both environments.
     google_sheets:
       api_key: "{{ aoe2tm_google_sheets_api_key }}"
+    # Bracket import from Challonge: the account's API v1 key, shared by both
+    # environments (one monthly quota). Its stages sync every 4 hours.
+    challonge:
+      api_key: "{{ aoe2tm_challonge_api_key }}"
 
 aoe2tm_staging_migrate_db_password: !vault |
           $ANSIBLE_VAULT;1.1;AES256
@@ -339,9 +347,7 @@ aoe2tm_google_sheets_api_key: !vault |
           63396461653262376533613634616131663630323330303364376630383735356639646239303761
           6666306631396239306138313331353363613165356532663133
 # Challonge API v1 key (Premier: 2,000 requests a month, shared by every
-# environment using it). Not wired into aoe2tm_environments yet: add
-# `challonge: {api_key: "{{ aoe2tm_challonge_api_key }}"}` once the app
-# syncs Challonge stages every 4 hours instead of every 5 minutes.
+# environment using it).
 aoe2tm_challonge_api_key: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           36346134373935333933376331363831653563323234666464313064333764326462346661313538
