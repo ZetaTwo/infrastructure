@@ -72,6 +72,25 @@ api_key = {{ item.challonge.api_key | to_json }}
 [google_sheets]
 api_key = {{ item.google_sheets.api_key | to_json }}
 {% endif %}
+{% if item.twitch is defined %}
+
+# Creators connect Twitch channels. Redirect URL registered with Twitch:
+# https://{{ item.domain }}/api/auth/channels/twitch/callback; stream events arrive at
+# https://{{ item.domain }}/api/webhooks/twitch.
+[twitch]
+client_id = {{ item.twitch.client_id | to_json }}
+client_secret = {{ item.twitch.client_secret | to_json }}
+webhook_secret = {{ item.twitch.webhook_secret | to_json }}
+{% endif %}
+{% if item.youtube is defined %}
+
+# Creators connect YouTube channels. Redirect URI registered with Google:
+# https://{{ item.domain }}/api/auth/channels/youtube/callback
+[youtube]
+client_id = {{ item.youtube.client_id | to_json }}
+client_secret = {{ item.youtube.client_secret | to_json }}
+token_key = {{ item.youtube.token_key | to_json }}
+{% endif %}
 {% if item.s3 is defined %}
 
 # Replay uploads; without [s3] they're disabled.

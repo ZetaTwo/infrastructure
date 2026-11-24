@@ -60,3 +60,30 @@ spec:
                 name: aoe2tm-backend
                 port:
                   number: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  # No gate (no middlewares): Twitch's EventSub notifications can't sign in
+  # to Google. The backend checks each one's signature (HMAC with the
+  # [twitch] webhook secret) itself. Exactly this path, nothing else under
+  # /api; its longer rule wins over `aoe2tm-api`'s /api. No cert-manager
+  # annotation: it reuses the `aoe2tm` Ingress's certificate.
+  name: aoe2tm-webhooks
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - gatherpoint.zetatwo.dev
+      secretName: aoe2tm-staging-tls
+  rules:
+    - host: gatherpoint.zetatwo.dev
+      http:
+        paths:
+          - path: /api/webhooks/twitch
+            pathType: Exact
+            backend:
+              service:
+                name: aoe2tm-backend
+                port:
+                  number: 3000
