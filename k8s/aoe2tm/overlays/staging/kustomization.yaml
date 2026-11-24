@@ -15,6 +15,6 @@ images:
   # Set by the deploy workflow to the newest main-* tags (deploy-targets.toml).
   # Each newTag must stay directly under its own `- name:` line.
   - name: ghcr.io/zetatwo/aoe2tm-backend
-    newTag: main-1795483528-b68fc328c52e3a831c470dfe1c4de53a4c8f86ee
+    newTag: main-1795491287-392954f475dbf1d871e326732ec4ba4c10b557fd
   - name: ghcr.io/zetatwo/aoe2tm-frontend
-    newTag: main-1795483528-b68fc328c52e3a831c470dfe1c4de53a4c8f86ee
+    newTag: main-1795491287-392954f475dbf1d871e326732ec4ba4c10b557fd
