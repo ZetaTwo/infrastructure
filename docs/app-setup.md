@@ -425,7 +425,8 @@ the backend's `config.toml`. On a fresh setup:
 ## One-time aoe2tm staging bootstrap
 
 aoe2tm (`ZetaTwo/aoe2-tournament-manager`, the site is Gather Point) staging runs at
-`gatherpoint.zetatwo.dev`, gated by the `collaborators` policy, from `k8s/aoe2tm/` (`base/` plus
+`gatherpoint.zetatwo.dev`, public for alpha testers (the app's closed beta admits only invite
+code holders; until 2026-11-24 it was gated by the `collaborators` policy), from `k8s/aoe2tm/` (`base/` plus
 `overlays/staging/`). It's laid out like canst:
 - a backend Deployment whose initContainers run `migrate` and then `seed`
   (staging test data, idempotent) before each rollout;

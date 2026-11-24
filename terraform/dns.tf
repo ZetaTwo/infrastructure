@@ -68,7 +68,7 @@ resource "cloudflare_dns_record" "obfuscation_challenge_staging" {
 }
 
 resource "cloudflare_dns_record" "aoe2tm_staging" {
-  zone_id = var.cloudflare_zones["zetatwo_dev"] # staging, auth-gated — docs/app-setup.md
+  zone_id = var.cloudflare_zones["zetatwo_dev"] # staging, public for alpha testers — docs/app-setup.md
   name    = "gatherpoint"
   type    = "A"
   content = hcloud_server.cluster_node[0].ipv4_address # node1 only, no multi-node routing yet
