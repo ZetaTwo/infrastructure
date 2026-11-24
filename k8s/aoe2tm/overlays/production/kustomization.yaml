@@ -11,6 +11,6 @@ images:
   # Each newTag must stay directly under its own `- name:` line. v0.0.0 is a
   # placeholder until the app's first vX.Y.Z release.
   - name: ghcr.io/zetatwo/aoe2tm-backend
-    newTag: v0.0.0
+    newTag: v0.1.0
   - name: ghcr.io/zetatwo/aoe2tm-frontend
-    newTag: v0.0.0
+    newTag: v0.1.0
