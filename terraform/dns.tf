@@ -115,9 +115,8 @@ resource "cloudflare_dns_record" "mail_dkim" {
   ttl      = 1
 }
 
-# setgatherpoint.com: Gather Point (aoe2tm) production. Prepared before
-# launch, so only its mail records exist; the web record comes with the
-# production overlay (docs/todo.md). The Google Workspace records (MX, apex
+# setgatherpoint.com: Gather Point (aoe2tm) production: the site at the apex,
+# and its mail records. The Google Workspace records (MX, apex
 # SPF, google._domainkey, site verification) live outside Terraform
 # (docs/messaging.md). Every record here waits for the zone:
 # nothing is created until cloudflare_zones has a `setgatherpoint_com` entry
@@ -133,6 +132,17 @@ locals {
     value    = "k=rsa;p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCr5tIoO4OuTxlKMGaaBhpZHEKRIVMShdVNno2itIWLhGW2eJ1TSMhqwn2bUawWYDQS5kh5RD5Vz98517Y5ALMB1od4elTOqjy++/2w+vmsh4+pbWW8J06aGr1Z0ZPoILN87lUGEAeADE4+QCY7gW7lGAP4ZXFH0bcjupueOOip1QIDAQAB"
   }
   setgatherpoint_zone = local.setgatherpoint == null ? {} : { setgatherpoint = local.setgatherpoint }
+}
+
+# The site (k8s/aoe2tm/overlays/production).
+resource "cloudflare_dns_record" "setgatherpoint_web" {
+  for_each = local.setgatherpoint_zone
+  zone_id  = each.value.zone_id
+  name     = "setgatherpoint.com"
+  type     = "A"
+  content  = hcloud_server.cluster_node[0].ipv4_address # node1 only, no multi-node routing yet
+  ttl      = 1
+  proxied  = false # un-proxied: HTTP-01 must reach Traefik directly
 }
 
 # Bounces go to Postmark through the domain itself; SPF is checked here.
