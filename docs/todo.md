@@ -16,23 +16,11 @@ Podman+Caddy to k3s, rather than carried over 1:1:
 - **Repeat backup restore drills.** First drilled 2026-10-04 on
   canst-staging ([Backups](backups.md#restore)), but against a database
   with no user data yet. Repeat periodically, and once real data exists.
-- **aoe2tm production** (Gather Point, `setgatherpoint.com`). Prepared but
-  not live: the `production` entry in `aoe2tm_environments` (database,
-  backup target, pull secret, every secret vaulted, the production Discord,
-  Entra and Postmark apps), `k8s/aoe2tm/overlays/production/` (public,
-  no seed), its deploy targets, and the zone's mail records in
-  `terraform/dns.tf`. To launch:
-  1. Add `setgatherpoint_com` to `cloudflare_zones` and the Cloudflare
-     token's zones, then `terraform apply` (mail records), and verify the
-     domain in Postmark.
-  2. `make ansible-apply TAGS=postgres,aoe2tm,ghcr_pull_secret,backups`.
-  3. Cut the app's first `vX.Y.Z` release, so the overlay's `v0.0.0`
-     placeholder becomes a real tag.
-  4. Add an apex A record for `setgatherpoint.com` in `terraform/dns.tf`
-     (like `aoe2_groups`), and `aoe2tm/overlays/production` to
-     `k8s/kustomization.yaml`.
-  5. Create the first admin (`aoe2tm-backend admin create`, see
-     [App setup](app-setup.md)) and log in once with each provider.
+- **aoe2tm production** (Gather Point, `setgatherpoint.com`), live since
+  v0.1.0 (2026-11-24), in the closed beta. Left: verify the domain in
+  Postmark (it sends from `noreply@setgatherpoint.com`), create the first
+  admin (`aoe2tm-backend admin create`, see [App setup](app-setup.md)), and
+  log in once with each provider.
 - **canst production.** Only `k8s/canst/overlays/staging/` exists. Production
   needs an overlay (`canst.zeta-two.com`, public), a `canst` database and
   environment entry, and its own secrets and backup target. The canst repo's

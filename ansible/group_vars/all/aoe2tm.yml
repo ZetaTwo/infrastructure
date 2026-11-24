@@ -60,9 +60,7 @@ aoe2tm_environments:
       client_id: "dl0hcwckah3rlpougjrmor6k67qc8z"
       client_secret: "{{ aoe2tm_staging_twitch_client_secret }}"
       webhook_secret: "{{ aoe2tm_staging_twitch_webhook_secret }}"
-  # Prepared, not live yet: k8s/aoe2tm/overlays/production isn't in
-  # k8s/kustomization.yaml and setgatherpoint.com has no web record, so
-  # applying this only creates the namespace, its Secrets and the database.
+  # Live since v0.1.0 (2026-11-24), still in the closed beta.
   - name: production
     namespace: aoe2tm-production
     domain: setgatherpoint.com

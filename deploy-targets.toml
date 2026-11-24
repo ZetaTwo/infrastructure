@@ -40,8 +40,6 @@ file = "k8s/aoe2-tournament-bot/deployment.yaml"
 image = "ghcr.io/zetatwo/aoe2-tournament-bot"
 policy = "release"
 
-# Prepared before launch: k8s/aoe2tm/overlays/production isn't in
-# k8s/kustomization.yaml yet, so these only keep its tags current.
 [[target]]
 name = "aoe2tm-backend/production"
 file = "k8s/aoe2tm/overlays/production/kustomization.yaml"
