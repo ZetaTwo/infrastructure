@@ -32,6 +32,12 @@ spec:
       - persistentvolumeclaims
       - pods
       - statefulsets
+    # Namespace labels become kube_namespace_labels{label_zetatwo_dev_app,
+    # label_zetatwo_dev_env}, which vmalert's `namespace:app_env:info`
+    # recording rule turns into the app/env mapping the Resources
+    # dashboard joins on.
+    metricLabelsAllowlist:
+      - namespaces=[zetatwo.dev/app,zetatwo.dev/env]
     resources:
       requests:
         cpu: 10m

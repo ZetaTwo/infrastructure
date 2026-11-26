@@ -26,6 +26,42 @@ spec:
       config:
         alerts:
           groups:
+            # Lookup series the Resources dashboard joins on, so its queries
+            # can say `* on (namespace) group_left (app, env)
+            # namespace:app_env:info` (docs/monitoring.md#resources).
+            - name: mappings
+              interval: 1m
+              rules:
+                # From the zetatwo.dev/app and zetatwo.dev/env namespace
+                # labels. Namespaces without them (monitoring, postgres,
+                # kube-system, ...) count as their own app in env "infra".
+                - record: namespace:app_env:info
+                  expr: |
+                    max by (namespace, app, env) (
+                      label_replace(label_replace(kube_namespace_labels{label_zetatwo_dev_app!=""},
+                        "app", "$1", "label_zetatwo_dev_app", "(.*)"),
+                        "env", "$1", "label_zetatwo_dev_env", "(.*)")
+                      or
+                      label_replace(label_replace(kube_namespace_labels{label_zetatwo_dev_app=""},
+                        "app", "$1", "namespace", "(.*)"),
+                        "env", "infra", "", "")
+                    )
+                # From the database naming convention <app>_<env>, with the
+                # app's dashes as underscores (ansible/group_vars/all/
+                # postgres.yml). Other databases (postgres) are infra.
+                - record: datname:app_env:info
+                  expr: |
+                    max by (datname, app, env) (
+                      label_transform(
+                        label_replace(label_replace(pg_database_size_bytes{datname=~".+_(staging|production)"},
+                          "app", "$1", "datname", "(.+)_(staging|production)"),
+                          "env", "$2", "datname", "(.+)_(staging|production)"),
+                        "app", "_", "-")
+                      or
+                      label_replace(label_replace(pg_database_size_bytes{datname!~".+_(staging|production)"},
+                        "app", "postgres", "", ""),
+                        "env", "infra", "", "")
+                    )
             - name: node
               interval: 30s
               rules:

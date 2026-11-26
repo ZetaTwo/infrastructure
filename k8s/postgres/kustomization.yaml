@@ -6,3 +6,4 @@ resources:
   - statefulset.yaml
   - service.yaml
   - networkpolicy.yaml
+  - exporter.yaml

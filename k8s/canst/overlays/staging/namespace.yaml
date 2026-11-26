@@ -3,5 +3,8 @@ kind: Namespace
 metadata:
   name: canst-staging
   labels:
+    # Resource dashboards group by these (docs/monitoring.md#resources).
+    zetatwo.dev/app: canst
+    zetatwo.dev/env: staging
     # Admitted by k8s/postgres/networkpolicy.yaml.
     zetatwo.dev/postgres-client: "true"

@@ -67,6 +67,27 @@ spec:
                   regex: vector;prom-exporter
                 - source_labels: [__meta_kubernetes_pod_node_name]
                   target_label: instance
+            # Per-container CPU, memory and network from each node's kubelet
+            # (cAdvisor), for the Resources dashboard. The chart's RBAC grants
+            # nodes/metrics. k3s signs the kubelet's serving cert (node IPs
+            # included) with the same CA as the service-account bundle.
+            - job_name: cadvisor
+              scheme: https
+              metrics_path: /metrics/cadvisor
+              bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+              tls_config:
+                ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              kubernetes_sd_configs:
+                - role: node
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_node_name]
+                  target_label: instance
+              # cAdvisor exposes ~100 metric names per container; keep only
+              # what the dashboard reads.
+              metric_relabel_configs:
+                - action: keep
+                  source_labels: [__name__]
+                  regex: container_(cpu_usage_seconds_total|cpu_cfs_periods_total|cpu_cfs_throttled_periods_total|memory_working_set_bytes|network_receive_bytes_total|network_transmit_bytes_total|oom_events_total)
             # App pods that opt in with prometheus.io/scrape + prometheus.io/port,
             # where the port must also be a declared containerPort.
             - job_name: kubernetes-pods

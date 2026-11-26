@@ -3,3 +3,7 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: obfuscation-challenge-sandbox-staging
+  labels:
+    # Resource dashboards group by these (docs/monitoring.md#resources).
+    zetatwo.dev/app: obfuscation-challenge
+    zetatwo.dev/env: staging

@@ -1,0 +1,55 @@
+# Per-database size, connections, transactions and cache hits for the
+# Resources dashboard (docs/monitoring.md#resources). Connects as
+# postgres_exporter (pg_monitor, no table data); the role and the
+# postgres-exporter Secret come from ansible/roles/postgres. vmsingle scrapes
+# it through the prometheus.io annotations, like an app.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-exporter
+  labels:
+    app: postgres-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-exporter
+  template:
+    metadata:
+      labels:
+        app: postgres-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9187"
+    spec:
+      containers:
+        - name: postgres-exporter
+          image: quay.io/prometheuscommunity/postgres-exporter:v0.21.1
+          args:
+            - --datasource.uri=postgres.postgres.svc.cluster.local:5432/postgres?sslmode=disable
+            - --datasource.user-file=/etc/postgres-exporter/user
+            - --datasource.pass-file=/etc/postgres-exporter/password
+            # Server settings and the postgres database's own tables: ~400
+            # series nobody reads, kept for 12 months.
+            - --no-collector.settings
+            - --no-collector.stat_user_tables
+          ports:
+            - containerPort: 9187
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 9187
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+          volumeMounts:
+            - name: credentials
+              mountPath: /etc/postgres-exporter
+              readOnly: true
+      volumes:
+        - name: credentials
+          secret:
+            secretName: postgres-exporter

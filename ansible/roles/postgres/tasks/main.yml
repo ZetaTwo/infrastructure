@@ -108,3 +108,40 @@
   loop_control:
     label: "{{ item.name }}"
   no_log: true
+
+# postgres_exporter's login (k8s/postgres/exporter.yaml). pg_monitor lets it
+# read every database's statistics and size without access to table data.
+- name: Provision the postgres_exporter role
+  kubernetes.core.k8s_exec:
+    namespace: postgres
+    pod: postgres-0
+    container: postgres
+    command: >-
+      sh -c {{ ('echo ' ~ (exporter_sql | b64encode)
+      ~ ' | base64 -d | psql -v ON_ERROR_STOP=1 -U postgres -d postgres'
+      ~ ' -v pw=' ~ (postgres_exporter_password | quote)) | quote }}
+  vars:
+    exporter_sql: |
+      SELECT 'CREATE ROLE postgres_exporter LOGIN'
+        WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'postgres_exporter') \gexec
+      ALTER ROLE postgres_exporter WITH LOGIN PASSWORD :'pw';
+      GRANT pg_monitor TO postgres_exporter;
+  register: postgres_exporter_role
+  changed_when: "'CREATE' in postgres_exporter_role.stdout"
+  no_log: true
+
+# Read by the exporter from files (--datasource.user-file/pass-file).
+- name: Apply postgres_exporter credentials secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: postgres-exporter
+        namespace: postgres
+      type: Opaque
+      stringData:
+        user: postgres_exporter
+        password: "{{ postgres_exporter_password }}"
+  no_log: true
