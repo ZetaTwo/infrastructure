@@ -1,0 +1,46 @@
+---
+# Temporary workaround, https://github.com/ZetaTwo/infrastructure/issues/2.
+# Ubuntu kernels 7.0.0-41 and later stack container AppArmor labels
+# (cri-containerd.apparmor.d//&unconfined). containerd's default profile
+# then drops signals between a container's own processes, and gosu (so
+# Postgres) hangs. This role pre-loads containerd's profile with the
+# stacked-peer rules from containerd#14487, which replaces node1's old
+# kernel pin to 7.0.0-38.
+#
+# Remove the role once k3s bundles a containerd with that fix. The last
+# task below says when that has happened.
+- name: Install patched cri-containerd AppArmor profile
+  ansible.builtin.copy:
+    src: cri-containerd.apparmor.d
+    dest: /etc/apparmor.d/cri-containerd.apparmor.d
+    mode: '0644'
+  notify: Load cri-containerd AppArmor profile
+
+# Replacing a loaded profile also applies to processes already confined by it.
+- name: Load the profile now, not on the next boot
+  ansible.builtin.meta: flush_handlers
+
+# The old manual pin (issue #2). Without it GRUB boots the newest kernel.
+- name: Remove the kernel pin
+  ansible.builtin.file:
+    path: /etc/default/grub.d/90-pin-kernel.cfg
+    state: absent
+  notify: Update GRUB
+
+# containerd's profile template is a plain string in its binary. Before
+# the fix, the binary has no "//&unconfined," at all.
+- name: Check whether k3s's containerd ships the stacked-peer fix
+  ansible.builtin.command: grep -aqF '//&unconfined,' /var/lib/rancher/k3s/data/current/bin/containerd
+  register: containerd_apparmor_fixed
+  changed_when: false
+  failed_when: containerd_apparmor_fixed.rc > 1
+
+- name: Report that this workaround can be removed
+  ansible.builtin.debug:
+    msg: >-
+      k3s's containerd now includes containerd#14487. Remove the
+      containerd_apparmor role, then on the node run
+      `apparmor_parser -R /etc/apparmor.d/cri-containerd.apparmor.d &&
+      rm /etc/apparmor.d/cri-containerd.apparmor.d`, and close
+      https://github.com/ZetaTwo/infrastructure/issues/2.
+  when: containerd_apparmor_fixed.rc == 0

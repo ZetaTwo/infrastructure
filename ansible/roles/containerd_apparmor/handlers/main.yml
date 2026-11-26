@@ -1,0 +1,8 @@
+---
+- name: Load cri-containerd AppArmor profile
+  ansible.builtin.command: apparmor_parser -r -W /etc/apparmor.d/cri-containerd.apparmor.d
+  changed_when: true
+
+- name: Update GRUB
+  ansible.builtin.command: update-grub
+  changed_when: true

@@ -1,0 +1,56 @@
+# Managed by ansible/roles/containerd_apparmor. Remove with that role.
+#
+# containerd's default container profile (contrib/apparmor/template.go in
+# k3s's containerd v2.3.7-k3s1, rendered for node1: daemon profile
+# unconfined, no RootlessKit), plus the two stacked-peer rules from
+# containerd#14487. containerd loads its own copy only when no profile of
+# this name is loaded yet, so this one wins.
+abi <abi/3.0>,
+
+#include <tunables/global>
+
+profile cri-containerd.apparmor.d flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  network,
+  capability,
+  file,
+  umount,
+  # Host (privileged) processes and containerd may send signals to container processes.
+  signal (receive) peer=unconfined,
+  # runc may send signals to container processes.
+  signal (receive) peer=runc,
+  # crun may send signals to container processes.
+  signal (receive) peer=crun,
+  # Container processes may send signals amongst themselves.
+  signal (send,receive) peer=cri-containerd.apparmor.d,
+  # With kernel.apparmor_restrict_unprivileged_unconfined=1, an unprivileged
+  # profile change is converted to stacking, producing "cri-containerd.apparmor.d//&unconfined".
+  # Allow signals to peers with this stacked label as well.
+  signal (send,receive) peer=cri-containerd.apparmor.d//&unconfined,
+
+  deny @{PROC}/* w,   # deny write for all files directly in /proc (not in a subdir)
+  # deny write to files not in /proc/<number>/** or /proc/sys/**
+  deny @{PROC}/{[^1-9/],[^1-9/][^0-9/],[^1-9s/][^0-9y/][^0-9s/],[^1-9/][^0-9/][^0-9/][^0-9/]*}/** w,
+  deny @{PROC}/sys/[^k]** w,  # deny /proc/sys except /proc/sys/k* (effectively /proc/sys/kernel)
+  deny @{PROC}/sys/kernel/{?,??,[^s][^h][^m]**} w,  # deny everything except shm* in /proc/sys/kernel/
+  deny @{PROC}/sysrq-trigger rwklx,
+  deny @{PROC}/kcore rwklx,
+
+  deny mount,
+
+  deny /sys/[^f]*/** wklx,
+  deny /sys/f[^s]*/** wklx,
+  deny /sys/fs/[^c]*/** wklx,
+  deny /sys/fs/c[^g]*/** wklx,
+  deny /sys/fs/cg[^r]*/** wklx,
+  deny /sys/firmware/** rwklx,
+  deny /sys/devices/virtual/powercap/** rwklx,
+  deny /sys/kernel/security/** rwklx,
+
+  # allow processes within the container to trace each other,
+  # provided all other LSM and yama setting allow it.
+  ptrace (trace,tracedby,read,readby) peer=cri-containerd.apparmor.d,
+  # Same stacked-label peer as the signal rule above.
+  ptrace (trace,tracedby,read,readby) peer=cri-containerd.apparmor.d//&unconfined,
+}

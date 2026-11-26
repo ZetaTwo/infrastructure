@@ -19,6 +19,8 @@
       tags: reboot_required_metric
     - role: k3s
       tags: k3s
+    - role: containerd_apparmor
+      tags: containerd_apparmor
     - role: flux
       tags: flux
     - role: ghcr_pull_secret

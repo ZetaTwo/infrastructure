@@ -1,8 +1,7 @@
 ---
 # Installs every pending package update (`apt full-upgrade`), one node at a
 # time. unattended-upgrades (roles/unattended_upgrades) only takes security
-# updates; this takes the rest. Reboots stay separate (`just reboot`), and
-# node1's kernel pin (CLAUDE.md) still decides which kernel boots.
+# updates; this takes the rest. Reboots stay separate (`just reboot`).
 # Run with `just upgrade [hosts]`.
 - name: Upgrade OS packages
   hosts: all
