@@ -1,6 +1,6 @@
 # Standard node_exporter DaemonSet, not Vector's host_metrics, so the
 # community dashboards (grafana.yaml) work against real `node_*` metrics.
-# Vector scrapes and forwards this (vector.yaml) instead of adding vmagent.
+# Scraped by vmsingle's `node-exporter` job (victoria-metrics.yaml).
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:

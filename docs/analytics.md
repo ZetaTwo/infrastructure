@@ -43,7 +43,7 @@ low-surveillance rules.
   overlaps with feature counters. Add it if page-level traffic becomes
   interesting.
 - **An OpenTelemetry Collector**: Vector already collects logs and
-  metrics. See [Tracing](#tracing).
+  vmsingle scrapes metrics. See [Tracing](#tracing).
 
 ### Tracing
 
@@ -60,9 +60,8 @@ Grafana datasource.
 
 vmsingle scrapes app pods directly (`scrape` in
 `k8s/monitoring/victoria-metrics.yaml`, which uses Kubernetes pod
-discovery and the chart's RBAC). Vector keeps scraping the infra
-exporters. Its `prometheus_scrape` source only takes static endpoints,
-so it can't discover pods.
+discovery and the chart's RBAC), in the same config as the infra
+exporters ([Monitoring](monitoring.md#metrics)).
 
 A pod is scraped when:
 

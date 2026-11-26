@@ -1,7 +1,8 @@
-# DaemonSet (role: Agent): tails pod logs, scrapes node_exporter, reports
-# its own metrics. ERROR-level logs also post straight to Discord below,
-# bypassing Alertmanager, since that's the only place the raw log text is
-# available. Metric alerts stay on vmalert -> Alertmanager (vmalert.yaml).
+# DaemonSet (role: Agent): tails pod logs into Loki and serves its own
+# metrics for vmsingle to scrape (victoria-metrics.yaml). ERROR-level logs
+# also post straight to Discord below, bypassing Alertmanager, since that's
+# the only place the raw log text is available. Metric alerts stay on
+# vmalert -> Alertmanager (vmalert.yaml).
 #
 # customConfig replaces the chart's default config entirely (chart docs:
 # "if used, all options need to be specified").
@@ -49,19 +50,6 @@ spec:
       sources:
         kubernetes_logs:
           type: kubernetes_logs
-        # node_exporter (node-exporter.yaml), not Vector's own
-        # host_metrics, so stock node_exporter Grafana dashboards work
-        # unmodified.
-        node_exporter:
-          type: prometheus_scrape
-          endpoints:
-            - http://node-exporter.monitoring.svc.cluster.local:9100/metrics
-        # Kubernetes object state (kube-state-metrics.yaml), for vmalert's
-        # `kubernetes` rule group.
-        kube_state_metrics:
-          type: prometheus_scrape
-          endpoints:
-            - http://kube-state-metrics.monitoring.svc.cluster.local:8080/metrics
         internal_metrics:
           type: internal_metrics
       transforms:
@@ -147,17 +135,10 @@ spec:
             app: '{{ "{{ kubernetes.pod_labels.app }}" }}'
             level: '{{ "{{ level }}" }}'
             namespace: '{{ "{{ kubernetes.pod_namespace }}" }}'
-        victoriametrics:
-          type: prometheus_remote_write
-          inputs: [node_exporter, kube_state_metrics, internal_metrics]
-          endpoint: http://vmsingle.monitoring.svc.cluster.local:8428/api/v1/write
-          # The default check GETs `endpoint` and wants 200, but
-          # VictoriaMetrics answers 204 there; /health returns 200.
-          healthcheck:
-            uri: http://vmsingle.monitoring.svc.cluster.local:8428/health
+        # Scraped by vmsingle's `vector` job (victoria-metrics.yaml).
         prom_exporter:
           type: prometheus_exporter
-          inputs: [node_exporter, kube_state_metrics, internal_metrics]
+          inputs: [internal_metrics]
           address: 0.0.0.0:9090
         discord_errors:
           type: http

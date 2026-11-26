@@ -1,7 +1,6 @@
-# Single-node metrics storage. Vector remote-writes here; Grafana and
-# vmalert read via its Prometheus-compatible HTTP API. It also scrapes app
-# pods itself (scrape below): Vector's prometheus_scrape only takes static
-# endpoints, while vmsingle can discover pods (docs/analytics.md).
+# Single-node metrics storage and the only metrics scraper: the infra
+# exporters, Vector's own metrics and annotated app pods (scrape below).
+# Grafana and vmalert read via its Prometheus-compatible HTTP API.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -28,13 +27,48 @@ spec:
         promscrape.configCheckInterval: 1m
       scrape:
         enabled: true
-        # Replaces the chart's default jobs (apiserver, nodes, cadvisor, ...):
-        # only pods that opt in with prometheus.io/scrape + prometheus.io/port,
-        # where the port must also be a declared containerPort.
+        # Replaces the chart's default jobs (apiserver, nodes, cadvisor, ...).
+        # The infra jobs find their pods by chart label and port name, one
+        # target per pod, so they follow DaemonSets onto new nodes.
         config:
           global:
             scrape_interval: 30s
           scrape_configs:
+            - job_name: node-exporter
+              kubernetes_sd_configs:
+                - role: pod
+                  namespaces:
+                    names: [monitoring]
+              relabel_configs:
+                - action: keep
+                  source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_container_port_name]
+                  regex: prometheus-node-exporter;metrics
+                # The node's name, not the host IP:port (shown in alerts).
+                - source_labels: [__meta_kubernetes_pod_node_name]
+                  target_label: instance
+            - job_name: kube-state-metrics
+              kubernetes_sd_configs:
+                - role: pod
+                  namespaces:
+                    names: [monitoring]
+              relabel_configs:
+                - action: keep
+                  source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_container_port_name]
+                  regex: kube-state-metrics;http
+            # Vector's internal metrics, from its prometheus_exporter sink.
+            - job_name: vector
+              kubernetes_sd_configs:
+                - role: pod
+                  namespaces:
+                    names: [monitoring]
+              relabel_configs:
+                - action: keep
+                  source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_container_port_name]
+                  regex: vector;prom-exporter
+                - source_labels: [__meta_kubernetes_pod_node_name]
+                  target_label: instance
+            # App pods that opt in with prometheus.io/scrape + prometheus.io/port,
+            # where the port must also be a declared containerPort.
             - job_name: kubernetes-pods
               kubernetes_sd_configs:
                 - role: pod
