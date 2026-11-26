@@ -15,4 +15,4 @@ patches:
 images:
   # Set by the deploy workflow to the newest main-* tags (deploy-targets.toml).
   - name: ghcr.io/zetatwo/obfuscation-challenge-runner
-    newTag: main-1795660550-5d5e6b1f9775a5ae0b1800e0b9d7274222af1350
+    newTag: main-1795663823-0cd28e866b1ca0470bf53cd73709667a6088b3fa
