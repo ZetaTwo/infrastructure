@@ -29,6 +29,8 @@ spec:
             # Lookup series the Resources dashboard joins on, so its queries
             # can say `* on (namespace) group_left (app, env)
             # namespace:app_env:info` (docs/monitoring.md#resources).
+            # `group by` makes every value 1, so the join doesn't scale what
+            # it's multiplied with.
             - name: mappings
               interval: 1m
               rules:
@@ -37,7 +39,7 @@ spec:
                 # kube-system, ...) count as their own app in env "infra".
                 - record: namespace:app_env:info
                   expr: |
-                    max by (namespace, app, env) (
+                    group by (namespace, app, env) (
                       label_replace(label_replace(kube_namespace_labels{label_zetatwo_dev_app!=""},
                         "app", "$1", "label_zetatwo_dev_app", "(.*)"),
                         "env", "$1", "label_zetatwo_dev_env", "(.*)")
@@ -48,17 +50,18 @@ spec:
                     )
                 # From the database naming convention <app>_<env>, with the
                 # app's dashes as underscores (ansible/group_vars/all/
-                # postgres.yml). Other databases (postgres) are infra.
+                # postgres.yml). The postgres database is infra; template0/1
+                # are left out.
                 - record: datname:app_env:info
                   expr: |
-                    max by (datname, app, env) (
+                    group by (datname, app, env) (
                       label_transform(
                         label_replace(label_replace(pg_database_size_bytes{datname=~".+_(staging|production)"},
                           "app", "$1", "datname", "(.+)_(staging|production)"),
                           "env", "$2", "datname", "(.+)_(staging|production)"),
                         "app", "_", "-")
                       or
-                      label_replace(label_replace(pg_database_size_bytes{datname!~".+_(staging|production)"},
+                      label_replace(label_replace(pg_database_size_bytes{datname="postgres"},
                         "app", "postgres", "", ""),
                         "env", "infra", "", "")
                     )

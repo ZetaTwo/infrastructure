@@ -17,8 +17,10 @@ pod stdout/stderr ──► Vector ──► Loki ──────────
 
 node_exporter ────────┐
 kube-state-metrics ───┤
-Vector's own metrics ─┼─► VictoriaMetrics ──► Grafana
-app pods (/metrics) ──┘    (scrapes all)  └─► vmalert ──► Alertmanager ──► Discord
+kubelet (cAdvisor) ───┤
+postgres_exporter ────┼─► VictoriaMetrics ──► Grafana
+Vector's own metrics ─┤    (scrapes all)  └─► vmalert ──► Alertmanager ──► Discord
+app pods (/metrics) ──┘
 
 Flux reconcile errors ───────────────────────────────────────► Discord
 ```
@@ -44,7 +46,10 @@ reconciliations.
 | node_exporter (DaemonSet) | `k8s/monitoring/node-exporter.yaml` | Host CPU, memory, disk and network (`node_*`). Also reads `*.prom` textfiles |
 | Textfile metrics | `ansible/roles/reboot_required_metric` | `node_reboot_required`, written by a systemd timer on the node and read by node_exporter |
 | kube-state-metrics | `k8s/monitoring/kube-state-metrics.yaml` | Kubernetes object state (`kube_*`): restarts, waiting reasons, replicas, Job and CronJob outcomes. Only the collectors the alerts use |
-| VictoriaMetrics (vmsingle) | `k8s/monitoring/victoria-metrics.yaml` | The only scraper and the metrics store, with a Prometheus-compatible API and 12-month retention. Scrapes node_exporter, kube-state-metrics, Vector's own metrics and annotated app pods |
+| cAdvisor (in the kubelet) | `victoria-metrics.yaml`, job `cadvisor` | Per-container CPU, throttling, memory, network and OOM kills |
+| postgres_exporter | `k8s/postgres/exporter.yaml` | Per-database size, connections, transactions and cache hits for the shared Postgres |
+| VictoriaMetrics (vmsingle) | `k8s/monitoring/victoria-metrics.yaml` | The only scraper and the metrics store, with a Prometheus-compatible API and 12-month retention |
+| Recording rules | `k8s/monitoring/vmalert.yaml`, group `mappings` | Map namespaces and databases to app and environment for the Resources dashboard |
 | App metrics | each app, port 9000 | RED metrics and feature counters ([Analytics](analytics.md)) |
 
 ### Alerts
@@ -65,6 +70,7 @@ reconciliations.
 | Grafana | `k8s/monitoring/grafana.yaml`, `grafana-ingress.yaml` | Dashboards and Explore over VictoriaMetrics and Loki, at `https://grafana.zetatwo.dev` |
 | "Node Exporter Full" dashboard | `grafana.yaml` (grafana.com ID 1860) | Host resources |
 | "Apps" dashboard | `grafana.yaml` | Per-app RED metrics and feature use ([Analytics](analytics.md#grafana)) |
+| "Resources" dashboard | `grafana.yaml` | CPU, memory, network, restarts and database use per app and environment ([Resources](#resources)) |
 | `just node-updates`, `just pods` | `justfile` | Terminal views of pending upgrades, kernel and reboot state, and pods |
 
 ### Not monitoring, but nearby
@@ -116,9 +122,10 @@ Example queries in Grafana's Explore view (Loki datasource):
 ## Metrics
 
 vmsingle scrapes everything every 30 s, one job per source, each found
-through Kubernetes pod discovery: `node-exporter`, `kube-state-metrics`,
-`vector` (Vector's internal metrics, from its `prom_exporter` sink) and
-`kubernetes-pods` (annotated app pods). The node_exporter and Vector jobs
+through Kubernetes discovery: `node-exporter`, `kube-state-metrics`,
+`vector` (Vector's internal metrics, from its `prom_exporter` sink),
+`cadvisor` (each node's kubelet) and `kubernetes-pods` (annotated pods: the
+apps and postgres_exporter). The node_exporter, Vector and cAdvisor jobs
 set `instance` to the node's name. Grafana ships with the
 "Node Exporter Full" dashboard (grafana.com ID 1860) against the
 VictoriaMetrics datasource. kube-state-metrics only runs the collectors the
@@ -128,6 +135,68 @@ cronjobs, nodes, namespaces, PVCs).
 App pods opt in with `prometheus.io/*` annotations. Those metrics feed the provisioned
 **Apps** dashboard and the `apps` alert group. See
 [Analytics and app metrics](analytics.md).
+
+## Resources
+
+The **Resources** dashboard shows what each app uses, per environment,
+with `Environment` and `App` pickers (several at once, or All):
+
+- **Usage by app:** CPU and memory stacked against the node's capacity,
+  and network in and out.
+- **Containers:** each running container's CPU and memory against its
+  requests and limits, restarts and OOM kills in the selected range, and
+  CPU throttling for containers with a CPU limit.
+- **Shared Postgres, per database:** size, connections, transactions per
+  second and cache hit ratio, plus the server's own CPU and memory. Those
+  two can't be split per database.
+
+### How apps and environments are known
+
+- **Namespaces carry the labels.** Each app namespace has
+  `zetatwo.dev/app` and `zetatwo.dev/env` (`production` or `staging`),
+  e.g. `obfuscation-challenge-sandbox-staging` is app
+  `obfuscation-challenge`, env `staging`. Namespace names alone don't
+  work: some production namespaces have no suffix, and an app can own
+  several namespaces. kube-state-metrics exports the two labels
+  (`metricLabelsAllowlist`), and the recording rule
+  `namespace:app_env:info` turns them into one series per namespace.
+  Namespaces without the labels (monitoring, postgres, kube-system, ...)
+  count as their own app in env `infra`.
+- **Databases follow their names.** postgres_exporter only knows database
+  names, so `datname:app_env:info` reads app and env from the
+  `<app>_<env>` naming convention (`obfuscation_challenge_staging`), with
+  the app's dashes as underscores.
+- **Queries join on those series**, for example:
+
+  ```promql
+  sum by (app, env) (
+    rate(container_cpu_usage_seconds_total{container!=""}[5m])
+    * on (namespace) group_left (app, env) namespace:app_env:info
+  )
+  ```
+
+  `container!=""` keeps app containers and leaves out cAdvisor's
+  pod-level totals and the pause containers. Network is per pod
+  (`interface="eth0"`), with host-network pods left out, since they would
+  report the whole node's traffic.
+
+A new app needs both labels on its namespace and a database named
+`<app>_<env>`. [App setup](app-setup.md) lists both steps.
+
+### The collectors
+
+- **cAdvisor** runs inside the kubelet. vmsingle scrapes
+  `https://<node>:10250/metrics/cadvisor` with its service-account token
+  (the chart's ClusterRole grants `nodes/metrics`), and verifies TLS
+  against the service-account CA, which k3s also signs kubelet certs
+  with. Only seven metric names are kept, out of about a hundred.
+- **postgres_exporter** (`k8s/postgres/exporter.yaml`) logs in as
+  `postgres_exporter`, a `pg_monitor` member that can read statistics but
+  no table data. `ansible/roles/postgres` creates the role and the
+  `postgres-exporter` Secret from the vaulted
+  `postgres_exporter_password`, which the exporter reads from a file.
+  The Postgres NetworkPolicy admits it by pod label. The server-settings
+  and per-table collectors are off.
 
 ## Alerting
 
@@ -255,9 +324,8 @@ because its file secrets backend requires a JSON object. Bootstrap steps:
   a dead man's switch, where Alertmanager sends an always-firing
   `Watchdog` alert to a hosted service that alerts when it stops
   arriving.
-- **No per-container CPU or memory.** vmsingle's scrape config replaces
-  the chart's default jobs, cAdvisor included, so container resource use
-  isn't collected. Only node totals and the apps' own metrics are.
-- **Postgres is a black box.** There is no postgres_exporter, so there are
-  no per-database size, connection or query metrics. The StatefulSet is
-  only covered by `StatefulSetUnavailable` and the node dashboards.
+- **No disk use per app.** Apps have no volumes of their own, so their
+  database size is their disk use. The infra volumes (VictoriaMetrics,
+  Loki, Postgres) only show up as node disk usage.
+- **No query-level Postgres metrics.** `pg_stat_statements` isn't
+  enabled, so slow queries aren't visible per statement.

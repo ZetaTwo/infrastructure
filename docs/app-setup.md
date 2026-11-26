@@ -232,14 +232,17 @@ split (`k8s/aoe2-groups/` is the reference) instead of a flat
   inert placeholder image tag — every overlay's own `images:` transformer
   always overrides it by repository name, so the literal placeholder is
   never actually deployed.
-- `overlays/staging/` adds its own `namespace.yaml` (`<name>-staging`),
+- `overlays/staging/` adds its own `namespace.yaml` (`<name>-staging`,
+  labelled `zetatwo.dev/app: <name>` and `zetatwo.dev/env: staging` for the
+  [Resources dashboard](monitoring.md#resources)),
   `ingress.yaml` (host `<name>.zetatwo.dev`, gated behind the oauth2-proxy
   `collaborators` policy — see
   [Auth (Google login via oauth2-proxy) bootstrap](#one-time-auth-google-login-via-oauth2-proxy-bootstrap)
   below), any environment-specific config as a strategic-merge patch (e.g.
   canst's `seed-patch.yaml`), and an `images: newTag:` the deploy
   workflow updates after every push to the app's `main`.
-- `overlays/production/` mirrors it with the app's real namespace, host
+- `overlays/production/` mirrors it with the app's real namespace
+  (`zetatwo.dev/env: production`), host
   `<name>.zeta-two.com` (public, no auth middleware), and an `images:
   newTag:` the deploy workflow updates **only** when a release tag appears.
 - Root `k8s/kustomization.yaml` lists both overlays as separate resources
@@ -364,7 +367,11 @@ cross the pod network, so they're unaffected.
    `<db>_app_db_password`, `<db>_backup_db_password` (same command as the
    restic password in [Backups](backups.md)) — and appending them to the
    app's `ansible/group_vars/all/<app>.yml`.
-2. Adding an entry to `postgres_databases` (`ansible/group_vars/all/postgres.yml`):
+2. Adding an entry to `postgres_databases` (`ansible/group_vars/all/postgres.yml`).
+   Name the database `<app>_<env>`, with the app's dashes as underscores
+   (`obfuscation_challenge_staging`): the
+   [Resources dashboard](monitoring.md#resources) reads app and environment
+   from it.
    ```yaml
    postgres_databases:
      - name: <db>
